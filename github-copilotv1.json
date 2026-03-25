@@ -1,0 +1,291 @@
+{
+    "__inputs": [
+      {
+        "name": "DS_VICTORIAMETRICS",
+        "label": "VictoriaMetrics",
+        "description": "Prometheus-compatible datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "pluginName": "Prometheus"
+      }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "12.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "bargauge", "name": "Bar gauge", "version": "" }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "description": "GitHub Copilot org + user insights from VictoriaMetrics",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Seat Total",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "github_copilot_seat_total{org=\"$org\"}",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+          "overrides": []
+        },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "graphMode": "none", "colorMode": "value" }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Latest DAU",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "github_copilot_daily_active_users{org=\"$org\"}",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+          "overrides": []
+        },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "graphMode": "none", "colorMode": "value" }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Latest MAU",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "github_copilot_monthly_active_users{org=\"$org\"}",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+          "overrides": []
+        },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "graphMode": "none", "colorMode": "value" }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Pending Invitations",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "github_copilot_seat_pending_invitation{org=\"$org\"}",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }] } },
+          "overrides": []
+        },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "graphMode": "none", "colorMode": "value" }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Adoption Trend",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "github_copilot_daily_active_users{org=\"$org\"}", "legendFormat": "DAU", "refId": "A" },
+          { "expr": "github_copilot_weekly_active_users{org=\"$org\"}", "legendFormat": "WAU", "refId": "B" },
+          { "expr": "github_copilot_monthly_active_users{org=\"$org\"}", "legendFormat": "MAU", "refId": "C" }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "color": { "mode": "palette-classic" } },
+          "overrides": []
+        },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+      },
+      {
+        "id": 6,
+        "type": "timeseries",
+        "title": "Users Using Chat / Agent / CLI per Day",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_user_used_chat{org=\"$org\"})", "legendFormat": "Used chat", "refId": "A" },
+          { "expr": "sum(github_copilot_user_used_agent{org=\"$org\"})", "legendFormat": "Used agent", "refId": "B" },
+          { "expr": "sum(github_copilot_user_used_cli{org=\"$org\"})", "legendFormat": "Used CLI", "refId": "C" }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "color": { "mode": "palette-classic" } },
+          "overrides": []
+        },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+      },
+      {
+        "id": 7,
+        "type": "bargauge",
+        "title": "Top Users by LoC Added",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "topk($topn, sum by (user_login) (sum_over_time(github_copilot_user_loc_added_sum{org=\"$org\"}[$__range])))",
+            "instant": true,
+            "legendFormat": "{{user_login}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "continuous-GrYlRd" } },
+          "overrides": []
+        },
+        "options": { "displayMode": "gradient", "namePlacement": "left", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true }
+      },
+      {
+        "id": 8,
+        "type": "bargauge",
+        "title": "Top Users by Code Acceptances",
+        "gridPos": { "h": 9, "w": 8, "x": 8, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "topk($topn, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{org=\"$org\"}[$__range])))",
+            "instant": true,
+            "legendFormat": "{{user_login}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "continuous-GrYlRd" } },
+          "overrides": []
+        },
+        "options": { "displayMode": "gradient", "namePlacement": "left", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true }
+      },
+      {
+        "id": 9,
+        "type": "bargauge",
+        "title": "Top Users by Prompts",
+        "gridPos": { "h": 9, "w": 8, "x": 16, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "topk($topn, sum by (user_login) (sum_over_time(github_copilot_user_prompt_count{org=\"$org\"}[$__range])))",
+            "instant": true,
+            "legendFormat": "{{user_login}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "continuous-GrYlRd" } },
+          "overrides": []
+        },
+        "options": { "displayMode": "gradient", "namePlacement": "left", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true }
+      },
+      {
+        "id": 10,
+        "type": "bargauge",
+        "title": "Top IDE Versions Seen",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 21 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "topk($topn, count by (ide_version) (max_over_time(github_copilot_user_ide_daily_record{org=\"$org\",ide_version!=\"\"}[$__range])))",
+            "instant": true,
+            "legendFormat": "{{ide_version}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "continuous-GrYlRd" } },
+          "overrides": []
+        },
+        "options": { "displayMode": "gradient", "namePlacement": "left", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true }
+      },
+      {
+        "id": 11,
+        "type": "bargauge",
+        "title": "Top CLI Versions Seen",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 21 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          {
+            "expr": "topk($topn, count by (cli_version) (max_over_time(github_copilot_user_cli_daily_record{org=\"$org\",cli_version!=\"\"}[$__range])))",
+            "instant": true,
+            "legendFormat": "{{cli_version}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "continuous-GrYlRd" } },
+          "overrides": []
+        },
+        "options": { "displayMode": "gradient", "namePlacement": "left", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true }
+      }
+    ],
+    "refresh": "1h",
+    "schemaVersion": 39,
+    "style": "dark",
+    "tags": ["github", "copilot", "victoriametrics", "user-level"],
+    "templating": {
+      "list": [
+        {
+          "name": "org",
+          "type": "query",
+          "label": "Org",
+          "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+          "query": { "query": "label_values(github_copilot_seat_total, org)", "refId": "PrometheusVariableQueryEditor-VariableQuery" },
+          "definition": "label_values(github_copilot_seat_total, org)",
+          "refresh": 1,
+          "includeAll": false,
+          "multi": false,
+          "sort": 1,
+          "current": {}
+        },
+        {
+          "name": "topn",
+          "type": "custom",
+          "label": "Top N",
+          "query": "5,10,15,20",
+          "current": { "selected": true, "text": "10", "value": "10" },
+          "options": [
+            { "selected": false, "text": "5", "value": "5" },
+            { "selected": true, "text": "10", "value": "10" },
+            { "selected": false, "text": "15", "value": "15" },
+            { "selected": false, "text": "20", "value": "20" }
+          ]
+        }
+      ]
+    },
+    "time": { "from": "now-30d", "to": "now" },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "GitHub Copilot Insights (Org + User)",
+    "uid": "github-copilot-insights-org-user",
+    "version": 1,
+    "weekStart": ""
+  }
