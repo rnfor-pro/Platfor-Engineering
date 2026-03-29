@@ -3,29 +3,48 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from prometheus_client import Counter, Gauge, start_http_server
 
 
+# ----------------------------
+# Logging
+# ----------------------------
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(message)s",
 )
 
+# ----------------------------
+# Environment variables
+# ----------------------------
 GH_TOKEN = os.environ["GH_TOKEN"]
 GH_ORG = os.environ["GH_ORG"]
 GH_API_BASE = os.getenv("GH_API_BASE", "https://api.github.com").rstrip("/")
 GH_API_VERSION = os.getenv("GH_API_VERSION", "2026-03-10")
 
+# GitHub data lag handling
 DATA_LAG_DAYS = int(os.getenv("DATA_LAG_DAYS", "2"))
-POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "21600"))
-BOOTSTRAP_28D = os.getenv("BOOTSTRAP_28D", "true").lower() == "true"
+
+# How often the collector wakes up
+POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "21600"))  # 6 hours
+
+# Bootstrap behavior
+BOOTSTRAP_28D = os.getenv("BOOTSTRAP_28D", "false").lower() == "true"
+FORCE_BOOTSTRAP = os.getenv("FORCE_BOOTSTRAP", "false").lower() == "true"
 
 EXPORTER_PORT = int(os.getenv("EXPORTER_PORT", "8080"))
 
+# VictoriaMetrics endpoints
 VM_IMPORT_URL = os.environ["VM_IMPORT_URL"]
+VM_SERIES_URL = os.getenv(
+    "VM_SERIES_URL",
+    "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428/prometheus/api/v1/series",
+)
+
+# Optional auth for VictoriaMetrics
 VM_USERNAME = os.getenv("VM_USERNAME", "")
 VM_PASSWORD = os.getenv("VM_PASSWORD", "")
 VM_BEARER_TOKEN = os.getenv("VM_BEARER_TOKEN", "")
@@ -33,35 +52,44 @@ VM_BEARER_TOKEN = os.getenv("VM_BEARER_TOKEN", "")
 HTTP_TIMEOUT = 60
 
 
-# Exporter self-metrics (for Alloy scrape if/when you add it)
+# ----------------------------
+# Prometheus self-metrics
+# ----------------------------
 EXPORTER_UP = Gauge(
     "github_copilot_exporter_up",
     "1 if the last collector cycle succeeded",
     ["org"],
 )
+
 LAST_SUCCESS = Gauge(
     "github_copilot_exporter_last_success_unixtime_seconds",
     "Unix time of the last successful collector cycle",
     ["org"],
 )
+
 LAST_DURATION = Gauge(
     "github_copilot_exporter_last_run_duration_seconds",
     "Duration of the last collector cycle in seconds",
     ["org"],
 )
+
 IMPORTED_POINTS = Counter(
     "github_copilot_exporter_imported_points_total",
-    "Number of VictoriaMetrics points imported",
-    ["org"],
-)
-ERRORS = Counter(
-    "github_copilot_exporter_errors_total",
-    "Number of failed collector cycles",
+    "How many VictoriaMetrics points were imported",
     ["org"],
 )
 
-session = requests.Session()
-session.headers.update(
+ERRORS = Counter(
+    "github_copilot_exporter_errors_total",
+    "How many collector cycles failed",
+    ["org"],
+)
+
+# ----------------------------
+# GitHub session
+# ----------------------------
+github_session = requests.Session()
+github_session.headers.update(
     {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {GH_TOKEN}",
@@ -69,11 +97,15 @@ session.headers.update(
     }
 )
 
+# In-memory lifecycle guards
 last_daily_import_day: Optional[str] = None
 bootstrapped = False
 
 
-def vm_auth():
+# ----------------------------
+# Helpers
+# ----------------------------
+def vm_auth() -> Tuple[Optional[Tuple[str, str]], Dict[str, str]]:
     if VM_BEARER_TOKEN:
         return None, {"Authorization": f"Bearer {VM_BEARER_TOKEN}"}
     if VM_USERNAME and VM_PASSWORD:
@@ -82,12 +114,18 @@ def vm_auth():
 
 
 def github_get_json(url: str, params: Optional[Dict[str, Any]] = None) -> Any:
-    resp = session.get(url, params=params, timeout=HTTP_TIMEOUT)
+    resp = github_session.get(url, params=params, timeout=HTTP_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
 
 
 def parse_json_or_ndjson(text: str) -> Any:
+    """
+    Handles:
+    - normal JSON object
+    - normal JSON array
+    - NDJSON (one JSON object per line)
+    """
     text = text.strip()
     if not text:
         return []
@@ -108,7 +146,7 @@ def download_report_chunks(download_links: List[str]) -> List[Any]:
     """
     IMPORTANT:
     The signed report URLs are Azure-hosted download links.
-    Do NOT send the GitHub Authorization header to them.
+    Do NOT send GitHub Authorization or GitHub API headers to them.
     """
     chunks: List[Any] = []
     download_session = requests.Session()
@@ -156,9 +194,19 @@ def fetch_billing() -> Dict[str, Any]:
 
 
 def day_to_ms(day_str: str) -> int:
+    """
+    Use noon UTC for the report day to avoid timezone confusion.
+    """
     d = datetime.strptime(day_str, "%Y-%m-%d").date()
     dt = datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=timezone.utc)
     return int(dt.timestamp() * 1000)
+
+
+def day_bounds(day_str: str) -> Tuple[str, str]:
+    d = datetime.strptime(day_str, "%Y-%m-%d").date()
+    start = datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=timezone.utc)
+    end = start + timedelta(days=1)
+    return start.isoformat(), end.isoformat()
 
 
 def now_ms() -> int:
@@ -218,6 +266,66 @@ def extract_rows(chunks: List[Any]) -> List[Dict[str, Any]]:
     return rows
 
 
+def vm_series_exists(matchers: List[str], start: str, end: str) -> bool:
+    """
+    Checks whether matching series already exist in VictoriaMetrics
+    for the supplied time range.
+    """
+    auth, extra_headers = vm_auth()
+
+    data = [("match[]", m) for m in matchers]
+    data.append(("start", start))
+    data.append(("end", end))
+
+    resp = requests.post(
+        VM_SERIES_URL,
+        data=data,
+        headers=extra_headers,
+        auth=auth,
+        timeout=HTTP_TIMEOUT,
+    )
+    resp.raise_for_status()
+
+    payload = resp.json()
+    series = payload.get("data", [])
+    return len(series) > 0
+
+
+def org_bootstrap_already_present() -> bool:
+    """
+    Returns True if org-level Copilot daily usage series already exist
+    in the last 30 days.
+    """
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=30)
+
+    matcher = f'github_copilot_daily_active_users{{org="{GH_ORG}"}}'
+    return vm_series_exists([matcher], start.isoformat(), end.isoformat())
+
+
+def org_day_already_present(day: str) -> bool:
+    """
+    Returns True if the org-level daily usage series already exist
+    for the supplied day.
+    """
+    start, end = day_bounds(day)
+    matcher = f'github_copilot_daily_active_users{{org="{GH_ORG}"}}'
+    return vm_series_exists([matcher], start, end)
+
+
+def user_day_already_present(day: str) -> bool:
+    """
+    Returns True if user-level daily records already exist
+    for the supplied day.
+    """
+    start, end = day_bounds(day)
+    matcher = f'github_copilot_user_daily_record{{org="{GH_ORG}"}}'
+    return vm_series_exists([matcher], start, end)
+
+
+# ----------------------------
+# Metric builders
+# ----------------------------
 def build_org_usage_series(row: Dict[str, Any]) -> List[str]:
     lines: List[str] = []
     day = row["day"]
@@ -239,6 +347,7 @@ def build_org_usage_series(row: Dict[str, Any]) -> List[str]:
         "github_copilot_loc_added_sum": row.get("loc_added_sum"),
         "github_copilot_loc_deleted_sum": row.get("loc_deleted_sum"),
     }
+
     for metric_name, value in root_fields.items():
         append_point(lines, metric_name, base, value, ts_ms)
 
@@ -257,6 +366,7 @@ def build_org_usage_series(row: Dict[str, Any]) -> List[str]:
         "github_copilot_pr_total_copilot_suggestions": pr.get("total_copilot_suggestions"),
         "github_copilot_pr_total_copilot_applied_suggestions": pr.get("total_copilot_applied_suggestions"),
     }
+
     for metric_name, value in pr_fields.items():
         append_point(lines, metric_name, base, value, ts_ms)
 
@@ -312,10 +422,8 @@ def build_user_usage_series(row: Dict[str, Any]) -> List[str]:
         "user_id": user_id,
     }
 
-    # One record per user/day
     append_point(lines, "github_copilot_user_daily_record", base, 1, ts_ms)
 
-    # Root user metrics
     root_fields = {
         "github_copilot_user_prompt_count": row.get("user_initiated_interaction_count"),
         "github_copilot_user_code_generation_activity_count": row.get("code_generation_activity_count"),
@@ -337,7 +445,6 @@ def build_user_usage_series(row: Dict[str, Any]) -> List[str]:
     for metric_name, value in root_fields.items():
         append_point(lines, metric_name, base, value, ts_ms)
 
-    # IDE/version presence and counts
     for item in row.get("totals_by_ide") or []:
         ide = str(item.get("ide", "unknown"))
         ide_version = ""
@@ -366,7 +473,6 @@ def build_user_usage_series(row: Dict[str, Any]) -> List[str]:
         append_point(lines, "github_copilot_user_ide_code_acceptance_activity_count", ide_labels, item.get("code_acceptance_activity_count"), ts_ms)
         append_point(lines, "github_copilot_user_ide_loc_added_sum", ide_labels, item.get("loc_added_sum"), ts_ms)
 
-    # CLI version presence
     totals_by_cli = row.get("totals_by_cli") or {}
     last_known_cli_version = totals_by_cli.get("last_known_cli_version") or {}
     cli_version = ""
@@ -382,7 +488,6 @@ def build_user_usage_series(row: Dict[str, Any]) -> List[str]:
         }
         append_point(lines, "github_copilot_user_cli_daily_record", cli_labels, 1, ts_ms)
 
-    # Optional feature breakdown per user
     for item in row.get("totals_by_feature") or []:
         labels = {
             "org": GH_ORG,
@@ -395,7 +500,6 @@ def build_user_usage_series(row: Dict[str, Any]) -> List[str]:
         append_point(lines, "github_copilot_user_feature_code_acceptance_activity_count", labels, item.get("code_acceptance_activity_count"), ts_ms)
         append_point(lines, "github_copilot_user_feature_loc_added_sum", labels, item.get("loc_added_sum"), ts_ms)
 
-    # Optional language/model dimensions
     for item in row.get("totals_by_language_feature") or []:
         labels = {
             "org": GH_ORG,
@@ -441,6 +545,9 @@ def build_billing_series(billing: Dict[str, Any]) -> List[str]:
     return lines
 
 
+# ----------------------------
+# VictoriaMetrics writer
+# ----------------------------
 def import_to_victoriametrics(lines: List[str]) -> int:
     if not lines:
         return 0
@@ -461,10 +568,21 @@ def import_to_victoriametrics(lines: List[str]) -> int:
     return len(lines)
 
 
+# ----------------------------
+# Import logic
+# ----------------------------
 def bootstrap_28d_once():
     global bootstrapped, last_daily_import_day
 
     if not BOOTSTRAP_28D or bootstrapped:
+        return
+
+    if not FORCE_BOOTSTRAP and org_bootstrap_already_present():
+        logging.info(
+            "Skipping 28-day bootstrap for org=%s because Copilot daily series already exist in VictoriaMetrics",
+            GH_ORG,
+        )
+        bootstrapped = True
         return
 
     logging.info("Starting one-time 28-day bootstrap import for org=%s", GH_ORG)
@@ -510,6 +628,15 @@ def import_latest_stable_day_if_needed():
 
     if last_daily_import_day == target_day:
         logging.info("Stable day %s already imported in this pod lifecycle; skipping", target_day)
+        return
+
+    if org_day_already_present(target_day) and user_day_already_present(target_day):
+        logging.info(
+            "Skipping stable day import for org=%s day=%s because data already exists in VictoriaMetrics",
+            GH_ORG,
+            target_day,
+        )
+        last_daily_import_day = target_day
         return
 
     logging.info("Importing stable day %s for org=%s", target_day, GH_ORG)
@@ -580,6 +707,7 @@ def main():
         try:
             run_cycle()
         except Exception:
+            # Keep process alive so health metrics remain scrapeable
             pass
 
         time.sleep(POLL_INTERVAL_SECONDS)
