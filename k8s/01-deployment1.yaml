@@ -40,6 +40,12 @@ spec:
               value: "false"
             - name: FORCE_BOOTSTRAP
               value: "false"
+            - name: ENABLE_DATE_RANGE_BACKFILL
+              value: "false"
+            - name: BACKFILL_START_DAY
+              value: ""
+            - name: BACKFILL_END_DAY
+              value: ""  
             - name: EXPORTER_PORT
               value: "8080"
             - name: LOG_LEVEL
