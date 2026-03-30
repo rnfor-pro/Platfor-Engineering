@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-copilot-exporter
+  namespace: dev-keystone
+  labels:
+    app: github-copilot-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-copilot-exporter
+  template:
+    metadata:
+      labels:
+        app: github-copilot-exporter
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: github-copilot-exporter
+          image: YOUR_REGISTRY/github-copilot-exporter:v-enterprise
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: GH_TOKEN
+            - name: GH_ENTERPRISE
+              value: "YOUR_ENTERPRISE_SLUG"
+            - name: GH_API_BASE
+              value: "https://api.github.com"
+            - name: GH_API_VERSION
+              value: "2026-03-10"
+            - name: DATA_LAG_DAYS
+              value: "2"
+            - name: POLL_INTERVAL_SECONDS
+              value: "21600"
+            - name: BOOTSTRAP_28D
+              value: "false"
+            - name: FORCE_BOOTSTRAP
+              value: "false"
+            - name: EXPORTER_PORT
+              value: "8080"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: VM_IMPORT_URL
+              value: "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428/api/v1/import"
+            - name: VM_SERIES_URL
+              value: "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428/prometheus/api/v1/series"
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
