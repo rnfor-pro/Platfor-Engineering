@@ -23,7 +23,7 @@
         "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${datasource}" },
         "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
         "id": 1,
-        "title": "Total Microsoft.Network Resources",
+        "title": "Total Network Resources",
         "type": "stat",
         "targets": [
           {
@@ -39,7 +39,7 @@
         "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${datasource}" },
         "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
         "id": 2,
-        "title": "Network Traffic - Bytes / Packets (Edit metric/namespace here)",
+        "title": "Network Traffic - Bytes / Packets",
         "type": "timeseries",
         "targets": [
           {
@@ -48,7 +48,7 @@
               "metricName": "ByteCount",
               "metricNamespace": "Microsoft.Network/publicIPAddresses",
               "resourceGroup": "$resourcegroup",
-              "resourceName": "$resource",
+              "resourceName": "",
               "subscription": "$subscription",
               "timeGrain": "auto"
             },
@@ -61,7 +61,7 @@
         "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${datasource}" },
         "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
         "id": 3,
-        "title": "Load Balancer Availability (VIP / DIP)",
+        "title": "Load Balancer Availability",
         "type": "timeseries",
         "targets": [
           {
@@ -70,7 +70,7 @@
               "metricName": "VIPAvailability",
               "metricNamespace": "Microsoft.Network/loadBalancers",
               "resourceGroup": "$resourcegroup",
-              "resourceName": "$resource",
+              "resourceName": "",
               "subscription": "$subscription",
               "timeGrain": "auto"
             },
@@ -83,7 +83,7 @@
         "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${datasource}" },
         "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 },
         "id": 4,
-        "title": "Custom Network Metric - Fully Editable (Recommended)",
+        "title": "Custom / Flexible Network Metric (Edit this one)",
         "type": "timeseries",
         "targets": [
           {
@@ -92,7 +92,7 @@
               "metricName": "",
               "metricNamespace": "",
               "resourceGroup": "$resourcegroup",
-              "resourceName": "$resource",
+              "resourceName": "",
               "subscription": "$subscription",
               "timeGrain": "auto"
             },
@@ -146,27 +146,13 @@
           "refresh": 1,
           "sort": 1,
           "type": "query"
-        },
-        {
-          "current": {},
-          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${datasource}" },
-          "definition": "Resources($subscription, $resourcegroup)",
-          "hide": 0,
-          "includeAll": true,
-          "label": "Resource (select one)",
-          "multi": false,
-          "name": "resource",
-          "query": "Resources($subscription, $resourcegroup)",
-          "refresh": 1,
-          "sort": 1,
-          "type": "query"
         }
       ]
     },
     "time": { "from": "now-6h", "to": "now" },
     "timepicker": { "refresh_intervals": ["30s", "1m", "5m", "15m", "30m", "1h"] },
     "timezone": "",
-    "title": "Azure Network Monitoring - Fixed & Simplified",
-    "uid": "azure-network-fixed-2026",
+    "title": "Azure Network Monitoring - Minimal & Stable",
+    "uid": "azure-network-minimal-stable",
     "version": 1
   }
