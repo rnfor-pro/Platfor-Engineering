@@ -74,13 +74,12 @@
   "graphTooltip": 1,
   "id": null,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "id": 200,
       "type": "text",
-      "title": "Dashboard Overview",
-      "description": "High-level overview of what this dashboard measures and why it matters to leadership, delivery teams, and developers.",
+      "title": "How to read this dashboard",
+      "description": "High-level overview of what this dashboard measures and why it matters.",
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -88,17 +87,16 @@
         "y": 0
       },
       "options": {
-        "content": "## GitHub Copilot Enterprise Code Generation & Delivery Impact\n\nThis dashboard focuses on how Copilot activity translates into code output and delivery outcomes.\n\n**Leadership:** quantify the scale of AI-assisted code change and how it relates to PR activity.  \n**Teams:** understand which features, IDEs, models, and languages are driving the most code impact.  \n**Developers:** see whether generated suggestions are accepted and how usage patterns translate into real code changes.\n\nUse this dashboard to answer: **How much code is Copilot influencing, how often is generated output accepted, and where is the impact strongest?**\n",
+        "content": "## GitHub Copilot Usage & Adoption Deep Dive\n\nThis dashboard focuses on **who is using Copilot, how they are using it, and where adoption is strongest**.\n\n**Leadership:** understand utilization, inactive seats, and where adoption is still shallow.  \n**Teams:** compare features, IDEs, languages, and models to see where enablement should focus.  \n**Developers:** understand which usage patterns correlate with deeper engagement and acceptance.\n",
         "mode": "markdown"
-      },
-      "pluginVersion": "12.0.0"
+      }
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total AI-assisted lines added and deleted over the selected time range. A broad indicator of code impact.",
+      "description": "Most recent daily active users. Day-to-day engagement pulse.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -110,7 +108,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d08cff",
+                "color": "#79d26b",
                 "value": null
               }
             ]
@@ -140,16 +138,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_loc_added_sum{enterprise=\"$enterprise\"}[$__range])) + sum(sum_over_time(github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "last_over_time(github_copilot_daily_active_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Lines of Code Changed with AI",
+      "title": "Latest DAU",
       "type": "stat"
     },
     {
@@ -157,7 +153,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total number of code generation events over the selected time range.",
+      "description": "Most recent weekly active users. Helps smooth daily volatility.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -169,7 +165,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d08cff",
+                "color": "#f5a524",
                 "value": null
               }
             ]
@@ -199,16 +195,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "last_over_time(github_copilot_weekly_active_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Code Generation Activity",
+      "title": "Latest WAU",
       "type": "stat"
     },
     {
@@ -216,7 +210,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total number of accepted Copilot suggestions over the selected time range.",
+      "description": "Most recent monthly active users. Broad adoption signal.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -228,7 +222,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d08cff",
+                "color": "#8bd3ff",
                 "value": null
               }
             ]
@@ -258,16 +252,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "last_over_time(github_copilot_monthly_active_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Code Acceptance Activity",
+      "title": "Latest MAU",
       "type": "stat"
     },
     {
@@ -275,13 +267,13 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Percentage of generated suggestions that were accepted. Indicates how often generated code was useful enough to keep.",
+      "description": "Users who used chat in the latest monthly window.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 1,
+          "decimals": 0,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -292,7 +284,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -317,16 +309,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "100 * sum(sum_over_time(github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])) / clamp_min(sum(sum_over_time(github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range])),1)",
+          "expr": "last_over_time(github_copilot_monthly_active_chat_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Acceptance Rate",
+      "title": "Monthly Chat Users",
       "type": "stat"
     },
     {
@@ -334,7 +324,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total pull requests created over the selected time range.",
+      "description": "Users who used agent features in the latest monthly window.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -346,7 +336,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d08cff",
+                "color": "#f5a524",
                 "value": null
               }
             ]
@@ -376,16 +366,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_pr_total_created{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "last_over_time(github_copilot_monthly_active_agent_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "PRs Created",
+      "title": "Monthly Agent Users",
       "type": "stat"
     },
     {
@@ -393,7 +381,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total pull requests merged over the selected time range.",
+      "description": "Users who interacted through Copilot CLI on the latest available day.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -405,7 +393,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d08cff",
+                "color": "#7aa2ff",
                 "value": null
               }
             ]
@@ -435,16 +423,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_pr_total_merged{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "last_over_time(github_copilot_daily_active_cli_users{enterprise=\"$enterprise\"}[90d])",
           "instant": true,
-          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "PRs Merged",
+      "title": "Latest CLI Users",
       "type": "stat"
     },
     {
@@ -452,7 +438,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows how many lines were added and deleted each day. Useful for spotting spikes, drops, and delivery patterns.",
+      "description": "Shows how chat, agent, and CLI usage change over time.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -505,14 +491,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Added"
+              "options": "Chat users"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#79d26b"
+                  "fixedColor": "#d08cff"
                 }
               }
             ]
@@ -520,14 +506,29 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Deleted"
+              "options": "Agent users"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#ef4444"
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CLI users"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#7aa2ff"
                 }
               }
             ]
@@ -536,7 +537,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 9
       },
@@ -551,20 +552,24 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "github_copilot_loc_added_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Added",
+          "expr": "github_copilot_monthly_active_chat_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Chat users",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Deleted",
+          "expr": "github_copilot_monthly_active_agent_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Agent users",
           "refId": "B"
+        },
+        {
+          "expr": "github_copilot_daily_active_cli_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "CLI users",
+          "refId": "C"
         }
       ],
-      "title": "Daily Total of Lines Added and Deleted",
+      "title": "Modality Adoption Trend",
       "type": "timeseries"
     },
     {
@@ -572,7 +577,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Compares generated suggestions to accepted suggestions over time. Helps reveal whether higher generation activity is creating usable output.",
+      "description": "Compares user-initiated prompts with active users so you can see whether usage is broad, shallow, or deep.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -625,22 +630,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Code generation"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Code acceptance"
+              "options": "User-initiated prompts"
             },
             "properties": [
               {
@@ -651,14 +641,29 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily active users"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#79d26b"
+                }
+              }
+            ]
           }
         ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 17
+        "x": 12,
+        "y": 9
       },
       "id": 208,
       "options": {
@@ -671,20 +676,19 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Code generation",
+          "expr": "github_copilot_user_initiated_interaction_count{enterprise=\"$enterprise\"}",
+          "legendFormat": "User-initiated prompts",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Code acceptance",
+          "expr": "github_copilot_daily_active_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Daily active users",
           "refId": "B"
         }
       ],
-      "title": "Code Generation vs Acceptance",
+      "title": "Prompt Depth vs Active Users",
       "type": "timeseries"
     },
     {
@@ -692,7 +696,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows suggested lines, accepted added lines, and deleted lines over time to illustrate overall coding impact.",
+      "description": "Counts users who used chat, agent, or CLI in each daily export. Good for understanding behavior shifts.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -745,7 +749,22 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Suggested to add"
+              "options": "Users used chat"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d08cff"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Users used agent"
             },
             "properties": [
               {
@@ -760,29 +779,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Added"
+              "options": "Users used CLI"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Deleted"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#ef4444"
+                  "fixedColor": "#7aa2ff"
                 }
               }
             ]
@@ -792,7 +796,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 17
       },
       "id": 209,
@@ -806,25 +810,24 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "github_copilot_loc_suggested_to_add_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Suggested to add",
+          "expr": "sum(github_copilot_user_used_chat{enterprise=\"$enterprise\"})",
+          "legendFormat": "Users used chat",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_loc_added_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Added",
+          "expr": "sum(github_copilot_user_used_agent{enterprise=\"$enterprise\"})",
+          "legendFormat": "Users used agent",
           "refId": "B"
         },
         {
-          "expr": "github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Deleted",
+          "expr": "sum(github_copilot_user_used_cli{enterprise=\"$enterprise\"})",
+          "legendFormat": "Users used CLI",
           "refId": "C"
         }
       ],
-      "title": "Lines of Code Trend",
+      "title": "User-Level Usage Flags",
       "type": "timeseries"
     },
     {
@@ -832,7 +835,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows PR creation, PR merges, and Copilot-authored PR creation over time. Connects Copilot usage to delivery workflow activity.",
+      "description": "Average prompts per active user over time. Helpful for spotting deeper engagement versus light-touch use.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -885,44 +888,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "PR created"
+              "options": "Prompts per active user"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#7aa2ff"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "PR merged"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "PR created by Copilot"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d08cff"
+                  "fixedColor": "#f5a524"
                 }
               }
             ]
@@ -932,8 +905,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 25
+        "x": 12,
+        "y": 17
       },
       "id": 210,
       "options": {
@@ -946,25 +919,14 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "github_copilot_pr_total_created{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR created",
+          "expr": "github_copilot_user_initiated_interaction_count{enterprise=\"$enterprise\"} / clamp_min(github_copilot_daily_active_users{enterprise=\"$enterprise\"},1)",
+          "legendFormat": "Prompts per active user",
           "refId": "A"
-        },
-        {
-          "expr": "github_copilot_pr_total_merged{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR merged",
-          "refId": "B"
-        },
-        {
-          "expr": "github_copilot_pr_total_created_by_copilot{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR created by Copilot",
-          "refId": "C"
         }
       ],
-      "title": "PR Activity",
+      "title": "Prompts per Active User",
       "type": "timeseries"
     },
     {
@@ -972,127 +934,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows median time to merge for all PRs and for Copilot-authored PRs. Helps compare throughput and time-to-value.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Median minutes to merge"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#f5a524"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Median minutes to merge (Copilot-authored)"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d08cff"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 25
-      },
-      "id": 211,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "github_copilot_pr_median_minutes_to_merge{enterprise=\"$enterprise\"}",
-          "legendFormat": "Median minutes to merge",
-          "refId": "A"
-        },
-        {
-          "expr": "github_copilot_pr_median_minutes_to_merge_copilot_authored{enterprise=\"$enterprise\"}",
-          "legendFormat": "Median minutes to merge (Copilot-authored)",
-          "refId": "B"
-        }
-      ],
-      "title": "PR Merge Speed",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Shows which user-facing Copilot features generated the most added lines of code over the selected time range.",
+      "description": "Which Copilot features receive the most prompts over the selected range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1121,9 +963,9 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 33
+        "y": 25
       },
-      "id": 212,
+      "id": 211,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1138,15 +980,14 @@
         "showUnfilled": true,
         "text": {}
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(12, sum by (feature) (sum_over_time(github_copilot_user_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, sum by (feature) (sum_over_time(github_copilot_user_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "User-Initiated Code Changes by Feature",
+      "title": "Feature Usage by Prompt Count",
       "type": "bargauge"
     },
     {
@@ -1154,7 +995,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows which enterprise-level feature categories contributed the most lines of code added.",
+      "description": "Which IDEs show the most Copilot prompt activity.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1183,9 +1024,9 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 33
+        "y": 25
       },
-      "id": 213,
+      "id": 212,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1200,15 +1041,14 @@
         "showUnfilled": true,
         "text": {}
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(12, sum by (feature) (sum_over_time(github_copilot_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, sum by (ide) (sum_over_time(github_copilot_user_ide_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Feature Breakdown (LoC Added)",
+      "title": "IDE Usage by Prompt Count",
       "type": "bargauge"
     },
     {
@@ -1216,7 +1056,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows which IDEs saw the highest amount of Copilot-assisted code added.",
+      "description": "Which AI models are most frequently used.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1245,6 +1085,67 @@
         "h": 8,
         "w": 8,
         "x": 16,
+        "y": 25
+      },
+      "id": 213,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Model Usage by Prompt Count",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Which languages show the most Copilot-assisted added lines.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
         "y": 33
       },
       "id": 214,
@@ -1262,15 +1163,14 @@
         "showUnfilled": true,
         "text": {}
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(12, sum by (ide) (sum_over_time(github_copilot_user_ide_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, sum by (language) (sum_over_time(github_copilot_user_language_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "IDE Breakdown (LoC Added)",
+      "title": "Language Usage by Added LoC",
       "type": "bargauge"
     },
     {
@@ -1278,7 +1178,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows which AI models contributed the most user-attributed added lines of code.",
+      "description": "Latest user distribution across AI adoption phases.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1306,8 +1206,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 41
+        "x": 12,
+        "y": 33
       },
       "id": 215,
       "options": {
@@ -1324,15 +1224,14 @@
         "showUnfilled": true,
         "text": {}
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "sum by (ai_adoption_phase) (last_over_time(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\"}[$__range]))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Code Changes by Model",
+      "title": "AI Adoption Phases",
       "type": "bargauge"
     },
     {
@@ -1340,69 +1239,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows which programming languages received the most Copilot-assisted added lines.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-BlPu"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#7aa2ff",
-                "value": null
-              },
-              {
-                "color": "#d08cff",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 41
-      },
-      "id": 216,
-      "options": {
-        "displayMode": "gradient",
-        "namePlacement": "left",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "text": {}
-      },
-      "pluginVersion": "12.0.0",
-      "targets": [
-        {
-          "expr": "topk(12, sum by (language) (sum_over_time(github_copilot_user_language_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Code Changes by Language",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Highlights users with the highest amount of Copilot-assisted lines added. Useful for finding where code generation value is strongest.",
+      "description": "Power users by prompt volume over the selected time range.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1423,9 +1260,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 41
       },
-      "id": 217,
+      "id": 216,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1436,25 +1273,18 @@
           ],
           "show": false
         },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Value"
-          }
-        ]
+        "showHeader": true
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(20, sum by (user_login) (sum_over_time(github_copilot_user_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Top Users by LoC Added",
       "transformations": [],
+      "title": "Top Users by Prompt Count",
       "type": "table"
     },
     {
@@ -1462,7 +1292,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Highlights users with the highest number of accepted Copilot suggestions over the selected time range.",
+      "description": "Users most frequently accepting Copilot suggestions.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1483,9 +1313,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 41
       },
-      "id": 218,
+      "id": 217,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1496,25 +1326,18 @@
           ],
           "show": false
         },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Value"
-          }
-        ]
+        "showHeader": true
       },
-      "pluginVersion": "12.0.0",
       "targets": [
         {
-          "expr": "topk(20, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "format": "table",
           "refId": "A"
         }
       ],
-      "title": "Top Users by Code Acceptances",
       "transformations": [],
+      "title": "Top Users by Accepted Suggestions",
       "type": "table"
     }
   ],
@@ -1524,10 +1347,9 @@
   "tags": [
     "github",
     "copilot",
-    "enterprise",
-    "codegen",
-    "delivery",
-    "impact"
+    "usage",
+    "adoption",
+    "enterprise"
   ],
   "templating": {
     "list": [
@@ -1543,7 +1365,6 @@
         "label": "Enterprise",
         "multi": false,
         "name": "enterprise",
-        "options": [],
         "query": {
           "query": "label_values(github_copilot_enterprise_seat_total, enterprise)",
           "refId": "VarEnterprise"
@@ -1560,8 +1381,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "GitHub Copilot Enterprise Code Generation & Delivery Impact",
-  "uid": "github-copilot-enterprise-codegen-detailed-v3",
+  "title": "GitHub Copilot Usage & Adoption Deep Dive",
+  "uid": null,
   "version": 1,
   "weekStart": ""
 }
