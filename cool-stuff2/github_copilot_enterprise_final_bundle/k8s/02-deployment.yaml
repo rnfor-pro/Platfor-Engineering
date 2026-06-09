@@ -1,0 +1,178 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-copilot-exporter
+  namespace: REPLACE_WITH_NAMESPACE
+  labels:
+    app: github-copilot-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-copilot-exporter
+  template:
+    metadata:
+      labels:
+        app: github-copilot-exporter
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: github-copilot-exporter
+          image: REPLACE_WITH_ARTIFACTORY_IMAGE
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: GH_TOKEN
+
+            - name: GH_ENTERPRISE
+              value: "REPLACE_WITH_ENTERPRISE_SLUG"
+
+            - name: GH_API_BASE
+              value: "https://api.github.com"
+
+            - name: GH_API_VERSION
+              value: "2026-03-10"
+
+            - name: BILLING_SCOPE
+              value: "enterprise"
+
+            - name: ENABLE_BILLING_REPORTS
+              value: "true"
+
+            - name: ENABLE_BILLING_USAGE_SUMMARY
+              value: "true"
+
+            # Optional. Leave blank if you do not use GitHub cost centers.
+            - name: GH_COST_CENTER_IDS
+              value: ""
+
+            # Optional fallback / extra slicing. Not required for enterprise-first billing.
+            - name: GH_BILLING_ORGS
+              value: ""
+
+            - name: DATA_LAG_DAYS
+              value: "2"
+
+            - name: POLL_INTERVAL_SECONDS
+              value: "21600"
+
+            - name: EXPORTER_PORT
+              value: "8080"
+
+            - name: LOG_LEVEL
+              value: "INFO"
+
+            - name: VM_IMPORT_URL
+              value: "REPLACE_WITH_VM_IMPORT_URL"
+
+            - name: VM_EXPORT_URL
+              value: "REPLACE_WITH_VM_EXPORT_URL"
+
+            - name: EXACT_DIFF_ENABLED
+              value: "true"
+
+            # skip = keep existing value if same key exists with different value
+            # replace = delete/rewrite drifted samples only if your process supports it
+            - name: DRIFT_POLICY
+              value: "skip"
+
+            - name: DRY_RUN
+              value: "false"
+
+            - name: BOOTSTRAP_28D
+              value: "false"
+
+            - name: FORCE_BOOTSTRAP
+              value: "false"
+
+            - name: ENABLE_DATE_RANGE_BACKFILL
+              value: "false"
+
+            - name: BACKFILL_START_DAY
+              value: ""
+
+            - name: BACKFILL_END_DAY
+              value: ""
+
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+
+            - name: VM_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_USERNAME
+                  optional: true
+
+            - name: VM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_PASSWORD
+                  optional: true
+
+            - name: VM_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_BEARER_TOKEN
+                  optional: true
+
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-copilot-exporter
+  namespace: REPLACE_WITH_NAMESPACE
+  labels:
+    app: github-copilot-exporter
+spec:
+  selector:
+    app: github-copilot-exporter
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
