@@ -1,62 +1,40 @@
-You can use the **same VictoriaMetrics host and port**, but **not** the `/api/v1/import` path to delete. For single-node VictoriaMetrics, backup/export uses `/api/v1/export/native`, delete uses `/api/v1/admin/tsdb/delete_series`, restore uses `/api/v1/import/native`, and after backfill/restore it is recommended to call `/internal/resetRollupResultCache`. ([docs.victoriametrics.com][1])
+That error means your machine cannot resolve the **Kubernetes internal service DNS**.
 
-Your URL in the screenshot should look like this pattern, not with `.port` in the hostname:
-
-```text
-http://dev-victoriametrics-victoria-metrics-single-server.NAMESPACE.svc.cluster.local:8428
-```
-
-I’ll call that base URL:
+You used:
 
 ```bash
-VM_BASE="http://dev-victoriametrics-victoria-metrics-single-server.NAMESPACE.svc.cluster.local:8428"
+dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local
+```
+
+That only resolves **from inside the cluster**, not from your laptop.
+
+Use one of these two ways.
+
+## Option 1 — run the curl from inside a pod
+
+This avoids port-forwarding.
+
+```bash
+kubectl -n dev-keystone exec -it deploy/github-copilot-exporter -- sh
+```
+
+Then inside the pod:
+
+```bash
+VM_BASE="http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428"
 ENTERPRISE="YOUR_ENTERPRISE"
 ```
 
-## 1) Backup first
-
-This backs up only the Copilot metrics in VictoriaMetrics native format:
-
-```bash
-curl -sS "$VM_BASE/api/v1/export/native" \
-  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
-  > github_copilot_backup_$(date +%Y%m%d_%H%M%S).bin
-```
-
-This backs up the billing summary family too:
-
-```bash
-curl -sS "$VM_BASE/api/v1/export/native" \
-  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
-  > github_billing_summary_backup_$(date +%Y%m%d_%H%M%S).bin
-```
-
-If you want one combined backup file instead:
+Backup:
 
 ```bash
 curl -sS "$VM_BASE/api/v1/export/native" \
   --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
   --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
-  > github_copilot_full_backup_$(date +%Y%m%d_%H%M%S).bin
+  -o /tmp/github_copilot_full_backup.bin
 ```
 
-## 2) Delete
-
-Delete only the Copilot metrics:
-
-```bash
-curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
-  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}'
-```
-
-Delete the billing summary family:
-
-```bash
-curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
-  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}'
-```
-
-Or both in one call:
+Delete:
 
 ```bash
 curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
@@ -64,76 +42,53 @@ curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
   --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}'
 ```
 
-Then clear cache:
+Restore if needed:
+
+```bash
+curl -sS -H 'Content-Type: application/octet-stream' \
+  --data-binary @/tmp/github_copilot_full_backup.bin \
+  "$VM_BASE/api/v1/import/native"
+```
+
+Reset cache:
 
 ```bash
 curl -Is "$VM_BASE/internal/resetRollupResultCache"
 ```
 
-## 3) Restore if needed
+## Option 2 — use a reachable URL from your laptop
 
-If the delete/backfill does not work, restore the native backup:
+If you already have an external/internal reachable URL for VictoriaMetrics, use that instead of the `.svc.cluster.local` name.
 
-```bash
-curl -sS -H 'Content-Type: application/octet-stream' \
-  --data-binary @github_copilot_full_backup_YYYYMMDD_HHMMSS.bin \
-  "$VM_BASE/api/v1/import/native"
+## One more thing
+
+Your screenshot also shows this typo pattern earlier:
+
+```text
+...single-server.namespace.svc.cluster.local.port/api/v1/import
 ```
 
-Or restore each file separately:
+That is invalid.
 
-```bash
-curl -sS -H 'Content-Type: application/octet-stream' \
-  --data-binary @github_copilot_backup_YYYYMMDD_HHMMSS.bin \
-  "$VM_BASE/api/v1/import/native"
+It must be:
+
+```text
+http://SERVICE.NAMESPACE.svc.cluster.local:8428
 ```
 
-```bash
-curl -sS -H 'Content-Type: application/octet-stream' \
-  --data-binary @github_billing_summary_backup_YYYYMMDD_HHMMSS.bin \
-  "$VM_BASE/api/v1/import/native"
+not:
+
+```text
+http://SERVICE.NAMESPACE.svc.cluster.local.port
 ```
 
-Then clear cache again:
+So the real issue is:
 
-```bash
-curl -Is "$VM_BASE/internal/resetRollupResultCache"
-```
+* **not a curl problem**
+* **not a VictoriaMetrics problem**
+* **you are running a cluster-internal DNS name from outside the cluster**
 
-## 4) Delete the backup file if everything works
-
-Linux/macOS/Git Bash:
-
-```bash
-rm github_copilot_full_backup_YYYYMMDD_HHMMSS.bin
-```
-
-Windows PowerShell:
-
-```powershell
-Remove-Item .\github_copilot_full_backup_YYYYMMDD_HHMMSS.bin
-```
-
-## 5) Quick verify before and after delete
-
-Before delete:
-
-```bash
-curl -sS "$VM_BASE/api/v1/export" \
-  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
-  | head
-```
-
-After delete:
-
-```bash
-curl -sS "$VM_BASE/api/v1/export" \
-  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}'
-```
-
-If you are running these from your laptop, that cluster DNS name usually will **not** resolve unless you are on the cluster network or inside a pod. If that happens, run the same curl commands from a pod in the cluster using the same `VM_BASE`.
-
-[1]: https://docs.victoriametrics.com/victoriametrics/url-examples/ "VictoriaMetrics: API examples"
+The best path for you is **Option 1**.
 
 
 
