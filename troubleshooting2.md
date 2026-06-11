@@ -1,3 +1,100 @@
+Use Python instead.
+
+Inside the pod:
+
+### Backup
+
+```bash
+python - <<'PY'
+import requests
+
+VM_BASE = "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428"
+ENTERPRISE = "YOUR_ENTERPRISE"
+
+data = [
+    ("match[]", f'{{__name__=~"github_copilot_.*",enterprise="{ENTERPRISE}"}}'),
+    ("match[]", f'{{__name__=~"github_billing_usage_summary_.*",enterprise="{ENTERPRISE}"}}'),
+]
+
+r = requests.post(f"{VM_BASE}/api/v1/export/native", data=data, timeout=300)
+r.raise_for_status()
+with open("/tmp/github_copilot_full_backup.bin", "wb") as f:
+    f.write(r.content)
+
+print("backup written to /tmp/github_copilot_full_backup.bin")
+PY
+```
+
+### Delete
+
+```bash
+python - <<'PY'
+import requests
+
+VM_BASE = "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428"
+ENTERPRISE = "YOUR_ENTERPRISE"
+
+data = [
+    ("match[]", f'{{__name__=~"github_copilot_.*",enterprise="{ENTERPRISE}"}}'),
+    ("match[]", f'{{__name__=~"github_billing_usage_summary_.*",enterprise="{ENTERPRISE}"}}'),
+]
+
+r = requests.post(f"{VM_BASE}/api/v1/admin/tsdb/delete_series", data=data, timeout=300)
+r.raise_for_status()
+print(r.text if r.text else "delete request sent successfully")
+PY
+```
+
+### Restore
+
+```bash
+python - <<'PY'
+import requests
+
+VM_BASE = "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428"
+
+with open("/tmp/github_copilot_full_backup.bin", "rb") as f:
+    r = requests.post(
+        f"{VM_BASE}/api/v1/import/native",
+        data=f,
+        headers={"Content-Type": "application/octet-stream"},
+        timeout=300,
+    )
+r.raise_for_status()
+print("restore completed")
+PY
+```
+
+### Reset cache
+
+```bash
+python - <<'PY'
+import requests
+VM_BASE = "http://dev-victoriametrics-victoria-metrics-single-server.dev-keystone.svc.cluster.local:8428"
+r = requests.get(f"{VM_BASE}/internal/resetRollupResultCache", timeout=60)
+print(r.status_code)
+print(r.text)
+PY
+```
+
+### Verify backup file exists
+
+```bash
+ls -lh /tmp/github_copilot_full_backup.bin
+```
+
+Replace only:
+
+* `YOUR_ENTERPRISE`
+
+Use the pod that already has Python and `requests`, like your exporter pod.
+
+
+
+
+
+
+
 That error means your machine cannot resolve the **Kubernetes internal service DNS**.
 
 You used:
