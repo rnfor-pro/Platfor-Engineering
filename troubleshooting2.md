@@ -1,3 +1,154 @@
+Use this same pattern around `127.0.0.1:8428` after port-forwarding.
+
+Set this first:
+
+```bash
+VM_BASE="http://127.0.0.1:8428"
+ENTERPRISE="sherwin-williams"
+BACKUP_FILE="github_copilot_full_backup_$(date +%Y%m%d_%H%M%S).bin"
+```
+
+## 1) Preview Copilot series before deleting anything
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'start=-90d'
+```
+
+Billing summary too:
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'start=-90d'
+```
+
+## 2) Export backup before deleting
+
+```bash
+curl -s "$VM_BASE/api/v1/export/native" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
+  -o "$BACKUP_FILE"
+```
+
+Confirm backup exists:
+
+```bash
+ls -lh "$BACKUP_FILE"
+```
+
+## 3) Delete only Copilot and expected related series
+
+```bash
+curl -v -X POST -g "$VM_BASE/api/v1/admin/tsdb/delete_series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}'
+```
+
+## 4) Clear cache immediately after delete
+
+```bash
+curl -sS "$VM_BASE/internal/resetRollupResultCache"
+```
+
+## 5) Validate delete worked
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'start=-90d'
+```
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'start=-90d'
+```
+
+## 6) Rerun one clean bootstrap / backfill
+
+After delete, deploy the new exporter with:
+
+* `BOOTSTRAP_28D=true` only if you really want bootstrap
+* or preferred: `ENABLE_DATE_RANGE_BACKFILL=true` with your date range
+* keep `FORCE_BOOTSTRAP=false`
+
+Then watch logs:
+
+```bash
+kubectl -n dev-keystone logs deployment/github-copilot-exporter -f
+```
+
+## 7) Turn bootstrap off again immediately after it completes
+
+Set back to:
+
+```yaml
+BOOTSTRAP_28D=false
+ENABLE_DATE_RANGE_BACKFILL=false
+BACKFILL_START_DAY=""
+BACKFILL_END_DAY=""
+```
+
+Sync again.
+
+## 8) Validate that data is back
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'start=-90d'
+```
+
+A few spot checks:
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/query" \
+  --data-urlencode 'query=max(github_copilot_monthly_active_users{enterprise="'"$ENTERPRISE"'"})'
+```
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/query" \
+  --data-urlencode 'query=max(github_copilot_enterprise_seat_total{enterprise="'"$ENTERPRISE"'"})'
+```
+
+```bash
+curl -s -X POST -g "$VM_BASE/prometheus/api/v1/query" \
+  --data-urlencode 'query=max(github_copilot_enterprise_seat_active_last_28d_total{enterprise="'"$ENTERPRISE"'"})'
+```
+
+## 9) Restore backup if something goes wrong
+
+```bash
+curl -sS -H 'Content-Type: application/octet-stream' \
+  --data-binary @"$BACKUP_FILE" \
+  "$VM_BASE/api/v1/import/native"
+```
+
+Then clear cache again:
+
+```bash
+curl -sS "$VM_BASE/internal/resetRollupResultCache"
+```
+
+## 10) Delete backup if everything works
+
+```bash
+rm "$BACKUP_FILE"
+```
+
+One correction to the old command: use `enterprise="$ENTERPRISE"` for your current exporter/dashboards, not `org=...`, unless you are intentionally targeting older org-labeled series.
+
+
+
+
+
+
+
+=======================
+
 Use Python instead.
 
 Inside the pod:
