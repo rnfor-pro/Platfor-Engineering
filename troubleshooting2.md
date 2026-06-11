@@ -1,4 +1,142 @@
-This is good news.
+You can use the **same VictoriaMetrics host and port**, but **not** the `/api/v1/import` path to delete. For single-node VictoriaMetrics, backup/export uses `/api/v1/export/native`, delete uses `/api/v1/admin/tsdb/delete_series`, restore uses `/api/v1/import/native`, and after backfill/restore it is recommended to call `/internal/resetRollupResultCache`. ([docs.victoriametrics.com][1])
+
+Your URL in the screenshot should look like this pattern, not with `.port` in the hostname:
+
+```text
+http://dev-victoriametrics-victoria-metrics-single-server.NAMESPACE.svc.cluster.local:8428
+```
+
+I’ll call that base URL:
+
+```bash
+VM_BASE="http://dev-victoriametrics-victoria-metrics-single-server.NAMESPACE.svc.cluster.local:8428"
+ENTERPRISE="YOUR_ENTERPRISE"
+```
+
+## 1) Backup first
+
+This backs up only the Copilot metrics in VictoriaMetrics native format:
+
+```bash
+curl -sS "$VM_BASE/api/v1/export/native" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  > github_copilot_backup_$(date +%Y%m%d_%H%M%S).bin
+```
+
+This backs up the billing summary family too:
+
+```bash
+curl -sS "$VM_BASE/api/v1/export/native" \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
+  > github_billing_summary_backup_$(date +%Y%m%d_%H%M%S).bin
+```
+
+If you want one combined backup file instead:
+
+```bash
+curl -sS "$VM_BASE/api/v1/export/native" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}' \
+  > github_copilot_full_backup_$(date +%Y%m%d_%H%M%S).bin
+```
+
+## 2) Delete
+
+Delete only the Copilot metrics:
+
+```bash
+curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}'
+```
+
+Delete the billing summary family:
+
+```bash
+curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}'
+```
+
+Or both in one call:
+
+```bash
+curl -sS -X POST "$VM_BASE/api/v1/admin/tsdb/delete_series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  --data-urlencode 'match[]={__name__=~"github_billing_usage_summary_.*",enterprise="'"$ENTERPRISE"'"}'
+```
+
+Then clear cache:
+
+```bash
+curl -Is "$VM_BASE/internal/resetRollupResultCache"
+```
+
+## 3) Restore if needed
+
+If the delete/backfill does not work, restore the native backup:
+
+```bash
+curl -sS -H 'Content-Type: application/octet-stream' \
+  --data-binary @github_copilot_full_backup_YYYYMMDD_HHMMSS.bin \
+  "$VM_BASE/api/v1/import/native"
+```
+
+Or restore each file separately:
+
+```bash
+curl -sS -H 'Content-Type: application/octet-stream' \
+  --data-binary @github_copilot_backup_YYYYMMDD_HHMMSS.bin \
+  "$VM_BASE/api/v1/import/native"
+```
+
+```bash
+curl -sS -H 'Content-Type: application/octet-stream' \
+  --data-binary @github_billing_summary_backup_YYYYMMDD_HHMMSS.bin \
+  "$VM_BASE/api/v1/import/native"
+```
+
+Then clear cache again:
+
+```bash
+curl -Is "$VM_BASE/internal/resetRollupResultCache"
+```
+
+## 4) Delete the backup file if everything works
+
+Linux/macOS/Git Bash:
+
+```bash
+rm github_copilot_full_backup_YYYYMMDD_HHMMSS.bin
+```
+
+Windows PowerShell:
+
+```powershell
+Remove-Item .\github_copilot_full_backup_YYYYMMDD_HHMMSS.bin
+```
+
+## 5) Quick verify before and after delete
+
+Before delete:
+
+```bash
+curl -sS "$VM_BASE/api/v1/export" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}' \
+  | head
+```
+
+After delete:
+
+```bash
+curl -sS "$VM_BASE/api/v1/export" \
+  --data-urlencode 'match[]={__name__=~"github_copilot_.*",enterprise="'"$ENTERPRISE"'"}'
+```
+
+If you are running these from your laptop, that cluster DNS name usually will **not** resolve unless you are on the cluster network or inside a pod. If that happens, run the same curl commands from a pod in the cluster using the same `VM_BASE`.
+
+[1]: https://docs.victoriametrics.com/victoriametrics/url-examples/ "VictoriaMetrics: API examples"
+
+
+
 
 A **200 OK** on both:
 
