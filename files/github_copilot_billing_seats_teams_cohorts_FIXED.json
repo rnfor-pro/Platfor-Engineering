@@ -1138,7 +1138,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Source: github_copilot_team_member_count (daily user-teams x users join). GitHub excludes teams with fewer than 5 seated Copilot users from the user-teams report, so teams below that threshold will not appear here even if they have Copilot seats.",
+      "description": "Source: github_copilot_team_member_count (daily user-teams x users join). GitHub excludes teams with fewer than 5 seated Copilot users from the user-teams report, so teams below that threshold will not appear here even if they have Copilot seats.\n\nIf this is empty: it depends entirely on github_copilot_user_team_membership / github_copilot_team_member_count, which both come from the same upstream source -- the daily user-teams-1-day report (team_rows). If team_rows is empty for ALL collected days, ALL THREE of these panels (Top Teams by Membership, User-Team Membership, and this one) will be empty together, regardless of the query.\n\nCheck exporter logs for: 'Fetched user_teams rows day=... count=0'. count=0 every day means either (a) every team in this enterprise genuinely has fewer than 5 seated Copilot users (GitHub's reporting threshold), or (b) the user-teams-1-day report metadata/signed download is failing silently and returning an empty list. (a) vs (b) cannot be distinguished from the dashboard -- check the logs.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1382,7 +1382,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Source: github_copilot_user_team_membership (daily user-teams report). GitHub excludes teams with fewer than 5 seated Copilot users from this report entirely -- if no team meets that threshold, this table is expected to show 'No data', not an error.",
+      "description": "Source: github_copilot_user_team_membership (daily user-teams report). GitHub excludes teams with fewer than 5 seated Copilot users from this report entirely -- if no team meets that threshold, this table is expected to show 'No data', not an error.\n\nIf this is empty: it depends entirely on github_copilot_user_team_membership / github_copilot_team_member_count, which both come from the same upstream source -- the daily user-teams-1-day report (team_rows). If team_rows is empty for ALL collected days, ALL THREE of these panels (Top Teams by Membership, User-Team Membership, and this one) will be empty together, regardless of the query.\n\nCheck exporter logs for: 'Fetched user_teams rows day=... count=0'. count=0 every day means either (a) every team in this enterprise genuinely has fewer than 5 seated Copilot users (GitHub's reporting threshold), or (b) the user-teams-1-day report metadata/signed download is failing silently and returning an empty list. (a) vs (b) cannot be distinguished from the dashboard -- check the logs.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
