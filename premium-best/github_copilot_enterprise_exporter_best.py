@@ -1,4 +1,3 @@
-
 import argparse
 import ast
 import hashlib
@@ -174,6 +173,12 @@ LAST_EXPECTED_POINTS = Gauge(
     ["enterprise", "family"],
 )
 
+TEAM_JOIN_UNMATCHED_USERS = Gauge(
+    "github_copilot_exporter_team_join_unmatched_users",
+    "Members present in the user-teams report for a day but missing from the users report for the same day (likely partial backfill)",
+    ["enterprise", "day"],
+)
+
 
 # -----------------------------------------------------------------------------
 # Small value object for normalized metrics
@@ -246,6 +251,23 @@ def day_to_midday_ms(day_str: str) -> int:
 
 def snapshot_day_ms(target_date: date) -> int:
     dt = datetime(target_date.year, target_date.month, target_date.day, 12, 0, 0, tzinfo=timezone.utc)
+    return int(dt.timestamp() * 1000)
+
+
+def collection_time_ms(collected_at: Optional[datetime] = None) -> int:
+    """
+    Mutable-state timestamp for seat snapshots.
+
+    Unlike daily usage and billing reports, seat assignments and activity windows
+    can legitimately change during the same day. Using the real collection time
+    avoids same-key collisions and drift warnings when the exporter re-runs later
+    on the same day.
+    """
+    dt = collected_at or datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
     return int(dt.timestamp() * 1000)
 
 
@@ -1084,10 +1106,16 @@ def build_team_rollup_points(
     user_rows: Sequence[Dict[str, Any]],
     team_rows: Sequence[Dict[str, Any]],
     settings: Settings,
-) -> List[MetricPoint]:
+) -> Tuple[List[MetricPoint], Dict[str, int]]:
     """
     Build team-level daily metrics by joining daily user-teams rows to daily
     per-user usage rows, following GitHub's documented approach.
+
+    Returns (points, unmatched_by_day): unmatched_by_day counts team members
+    present in the user-teams report for a day but absent from the users
+    report for that same day. A non-zero count usually means a partial
+    backfill (one report succeeded, the other didn't) and should not be
+    silently treated as "zero usage" for that member.
     """
     usage_index: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for row in user_rows:
@@ -1096,6 +1124,7 @@ def build_team_rollup_points(
         if day and user_id:
             usage_index[(day, user_id)] = row
 
+    unmatched_by_day: Dict[str, int] = {}
     by_team_day: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
     for team_row in team_rows:
         day = str(team_row.get("day") or "")
@@ -1118,6 +1147,7 @@ def build_team_rollup_points(
 
         user_row = usage_index.get((day, user_id))
         if not user_row:
+            unmatched_by_day[day] = unmatched_by_day.get(day, 0) + 1
             continue
 
         agg["users"].add(user_id)
@@ -1142,7 +1172,8 @@ def build_team_rollup_points(
             if p:
                 points.append(p)
 
-    return points
+    return points, unmatched_by_day
+
 
 
 def _parse_iso_to_epoch_seconds(value: Any) -> Optional[float]:
@@ -1155,12 +1186,23 @@ def _parse_iso_to_epoch_seconds(value: Any) -> Optional[float]:
         return None
 
 
-def build_enterprise_seat_points(seat_payload: Dict[str, Any], settings: Settings, target_date: date) -> List[MetricPoint]:
+def build_enterprise_seat_points(
+    seat_payload: Dict[str, Any],
+    settings: Settings,
+    target_date: date,
+    collected_at: Optional[datetime] = None,
+) -> List[MetricPoint]:
     """
-    Daily seat snapshot. Stored once per day with a deterministic timestamp.
+    Seat snapshot captured for the current day.
+
+    Seats are mutable state rather than immutable daily reports. A user's last
+    activity, active-last-7d/28d/90d status, pending cancellation status, and
+    coverage ratios can change when the exporter runs again later the same day.
+    Use the real collection timestamp so each run records the latest observed
+    state instead of colliding on a fixed midday timestamp.
     """
     points: List[MetricPoint] = []
-    ts_ms = snapshot_day_ms(target_date)
+    ts_ms = collection_time_ms(collected_at)
     base = {
         "enterprise": settings.gh_enterprise,
     }
@@ -1612,8 +1654,17 @@ class CopilotExporter:
             team_points.extend(build_user_team_points(row, self.settings))
         total += self._import_family_points("user_teams", day, team_points)
 
-        team_rollup_points = build_team_rollup_points(user_rows, team_rows, self.settings)
+        team_rollup_points, unmatched_by_day = build_team_rollup_points(user_rows, team_rows, self.settings)
         total += self._import_family_points("team_rollups", day, team_rollup_points)
+        unmatched = unmatched_by_day.get(day, 0)
+        TEAM_JOIN_UNMATCHED_USERS.labels(enterprise=self.settings.gh_enterprise, day=day).set(unmatched)
+        if unmatched:
+            logging.warning(
+                "Team join unmatched users day=%s count=%s "
+                "(team-membership row had no corresponding users-1-day row; "
+                "likely partial backfill of the users report for this day)",
+                day, unmatched,
+            )
 
         cohort_rollup_points = build_ai_adoption_phase_rollup_points(user_rows, self.settings)
         logging.info("Built cohort_rollup points day=%s count=%s", day, len(cohort_rollup_points))
@@ -1661,15 +1712,20 @@ class CopilotExporter:
 
     def _process_daily_seats(self, day: str) -> int:
         """
-        Seats are daily snapshots captured on the day the exporter runs.
-        For historical backfill there is no historical seat API, so this path is only
-        used when the requested day == today.
+        Capture the current enterprise seat state for today only.
+
+        There is no historical daily seat report API, so backfills should not
+        attempt to invent past seat snapshots. When we do collect today's seat
+        state, use the real collection timestamp rather than a fixed midday
+        timestamp so same-day reruns append a newer observation instead of
+        producing drift on an immutable key.
         """
         target_date = datetime.strptime(day, "%Y-%m-%d").date()
-        if target_date != datetime.now(timezone.utc).date():
+        collected_at = datetime.now(timezone.utc)
+        if target_date != collected_at.date():
             return 0
         payload = self.github.fetch_enterprise_seats()
-        points = build_enterprise_seat_points(payload, self.settings, target_date)
+        points = build_enterprise_seat_points(payload, self.settings, target_date, collected_at=collected_at)
         return self._import_family_points("seat_snapshot", day, points)
 
     def process_day(self, day: str) -> int:
@@ -1684,6 +1740,12 @@ class CopilotExporter:
             return
 
         logging.info("Starting exact-diff 28-day bootstrap for enterprise=%s", self.settings.gh_enterprise)
+        logging.warning(
+            "28-day bootstrap covers enterprise_usage and user_usage only. "
+            "team_rollups, user_teams, and cohort_rollups for this window will "
+            "remain empty unless ENABLE_DATE_RANGE_BACKFILL is also run for the "
+            "same 28-day window (see backfill runbook)."
+        )
 
         enterprise_rows = extract_rows(self.github.fetch_enterprise_usage_28d())
         user_rows = extract_rows(self.github.fetch_users_usage_28d())
