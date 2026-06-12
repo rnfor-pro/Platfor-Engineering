@@ -76,7 +76,7 @@
   "links": [],
   "panels": [
     {
-      "id": 100,
+      "id": 200,
       "type": "text",
       "title": "How to read this dashboard",
       "description": "High-level overview of what this dashboard measures and why it matters.",
@@ -87,7 +87,7 @@
         "y": 0
       },
       "options": {
-        "content": "## GitHub Copilot Enterprise Executive Overview\n\nThis dashboard gives a single leadership view of **value, adoption, spend, and delivery impact**.\n\n**Leadership:** track whether Copilot licenses and AI spend translate into measurable use and engineering output.  \n**Teams:** identify where adoption is strongest, where enablement is needed, and how usage trends compare across organizations.  \n**Developers:** see whether Copilot suggestions are being accepted and where AI-assisted work is contributing to real code changes and pull-request flow.\n\nUse this dashboard first, then drill into the deeper detailed dashboards for adoption, code generation, billing, and cohorts.\n",
+        "content": "## GitHub Copilot Usage & Adoption Deep Dive\n\nThis dashboard focuses on **who is using Copilot, how they are using it, and where adoption is strongest**.\n\n**Leadership:** understand utilization, inactive seats, and where adoption is still shallow.  \n**Teams:** compare features, IDEs, languages, and models to see where enablement should focus.  \n**Developers:** understand which usage patterns correlate with deeper engagement and acceptance.\n",
         "mode": "markdown"
       }
     },
@@ -96,7 +96,121 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Current number of Copilot seats assigned across the enterprise. Use this to compare license capacity with real usage.",
+      "description": "Most recent daily active users. Day-to-day engagement pulse.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 5
+      },
+      "id": 201,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_daily_active_users{enterprise=\"$enterprise\"}[90d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Latest DAU",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Most recent weekly active users. Helps smooth daily volatility.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#f5a524",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 5
+      },
+      "id": 202,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_weekly_active_users{enterprise=\"$enterprise\"}[90d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Latest WAU",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Most recent monthly active users. Broad adoption signal.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -120,124 +234,10 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 0,
-        "y": 5
-      },
-      "id": 101,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "last_over_time(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}[30d])",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Enterprise Seats",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Seats with activity in the last 28 days. This is the best headline measure of active license utilization.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 5
-      },
-      "id": 102,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "last_over_time(github_copilot_enterprise_seat_active_last_28d_total{enterprise=\"$enterprise\"}[30d])",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Active Seats (28d)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Most recent monthly active users. Measures broad enterprise adoption.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#d08cff",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
         "x": 8,
         "y": 5
       },
-      "id": 103,
+      "id": 203,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -254,7 +254,7 @@
       },
       "targets": [
         {
-          "expr": "last_over_time(github_copilot_monthly_active_users{enterprise=\"$enterprise\"}[90d])",
+          "expr": "max(last_over_time(github_copilot_monthly_active_users{enterprise=\"$enterprise\"}[90d]))",
           "instant": true,
           "refId": "A"
         }
@@ -267,121 +267,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Percent of generated suggestions that were accepted. Strong signal of practical usefulness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#f5a524",
-                "value": null
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 5
-      },
-      "id": 104,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "100 * sum(sum_over_time(github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])) / clamp_min(sum(sum_over_time(github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range])),1)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Acceptance Rate",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Total AI credit cost in USD for the selected billing orgs and time range. Future-looking spend metric.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#d08cff",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 5
-      },
-      "id": 105,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "sum(sum_over_time(github_copilot_billing_ai_credit_total_net_amount{enterprise=\"$enterprise\",org=~\"$org\"}[$__range]))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "AI Credit Cost",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Total lines added plus deleted with Copilot assistance over the selected range. High-level code impact indicator.",
+      "description": "Users who used chat in the latest monthly window.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -393,7 +279,121 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#79d26b",
+                "color": "#d08cff",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 5
+      },
+      "id": 204,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_monthly_active_chat_users{enterprise=\"$enterprise\"}[90d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Chat Users",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Users who used agent features in the latest monthly window.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#f5a524",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 5
+      },
+      "id": 205,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_monthly_active_agent_users{enterprise=\"$enterprise\"}[90d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Agent Users",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Users who interacted through Copilot CLI on the latest available day.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
                 "value": null
               }
             ]
@@ -408,7 +408,7 @@
         "x": 20,
         "y": 5
       },
-      "id": 106,
+      "id": 206,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -425,12 +425,12 @@
       },
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_loc_added_sum{enterprise=\"$enterprise\"}[$__range])) + sum(sum_over_time(github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "max(last_over_time(github_copilot_daily_active_cli_users{enterprise=\"$enterprise\"}[90d]))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "LoC Changed with AI",
+      "title": "Latest CLI Users",
       "type": "stat"
     },
     {
@@ -438,7 +438,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows how daily, weekly, and monthly active usage is changing over time.",
+      "description": "Shows how chat, agent, and CLI usage change over time.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -491,161 +491,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "DAU"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "WAU"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#f5a524"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "MAU"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#8bd3ff"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 9
-      },
-      "id": 107,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "github_copilot_daily_active_users{enterprise=\"$enterprise\"}",
-          "legendFormat": "DAU",
-          "refId": "A"
-        },
-        {
-          "expr": "github_copilot_weekly_active_users{enterprise=\"$enterprise\"}",
-          "legendFormat": "WAU",
-          "refId": "B"
-        },
-        {
-          "expr": "github_copilot_monthly_active_users{enterprise=\"$enterprise\"}",
-          "legendFormat": "MAU",
-          "refId": "C"
-        }
-      ],
-      "title": "Adoption Trend",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Compares legacy premium-request spend with AI credit spend. Use AI credits as the main forward-looking billing signal.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Premium requests - {{org}}"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#f5a524"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "AI credits - {{org}}"
+              "options": "Chat users"
             },
             "properties": [
               {
@@ -656,107 +502,18 @@
                 }
               }
             ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 9
-      },
-      "id": 108,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum by (org) (github_copilot_billing_premium_request_total_net_amount{enterprise=\"$enterprise\",org=~\"$org\"})",
-          "legendFormat": "Premium requests - {{org}}",
-          "refId": "A"
-        },
-        {
-          "expr": "sum by (org) (github_copilot_billing_ai_credit_total_net_amount{enterprise=\"$enterprise\",org=~\"$org\"})",
-          "legendFormat": "AI credits - {{org}}",
-          "refId": "B"
-        }
-      ],
-      "title": "Spend Trend",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Shows whether more generated suggestions are also translating into accepted, usable output.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "Generated suggestions"
+              "options": "Agent users"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#8bd3ff"
+                  "fixedColor": "#f5a524"
                 }
               }
             ]
@@ -764,111 +521,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Accepted suggestions"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 17
-      },
-      "id": 109,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Generated suggestions",
-          "refId": "A"
-        },
-        {
-          "expr": "github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Accepted suggestions",
-          "refId": "B"
-        }
-      ],
-      "title": "Generation vs Acceptance",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Connects Copilot activity to PR creation and PR merge activity.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "PR created"
+              "options": "CLI users"
             },
             "properties": [
               {
@@ -879,46 +532,16 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "PR merged"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "PR created by Copilot"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d08cff"
-                }
-              }
-            ]
           }
         ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 17
+        "x": 0,
+        "y": 9
       },
-      "id": 110,
+      "id": 207,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -931,22 +554,22 @@
       },
       "targets": [
         {
-          "expr": "github_copilot_pr_total_created{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR created",
+          "expr": "github_copilot_monthly_active_chat_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Chat users",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_pr_total_merged{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR merged",
+          "expr": "github_copilot_monthly_active_agent_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Agent users",
           "refId": "B"
         },
         {
-          "expr": "github_copilot_pr_total_created_by_copilot{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR created by Copilot",
+          "expr": "github_copilot_daily_active_cli_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "CLI users",
           "refId": "C"
         }
       ],
-      "title": "PR Delivery Trend",
+      "title": "Modality Adoption Trend",
       "type": "timeseries"
     },
     {
@@ -954,7 +577,364 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows the latest distribution of users across GitHub\u2019s AI adoption phases. Helpful for enablement and maturity tracking.",
+      "description": "Compares user-initiated prompts with active users so you can see whether usage is broad, shallow, or deep.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "User-initiated prompts"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Daily active users"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#79d26b"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 208,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "github_copilot_user_initiated_interaction_count{enterprise=\"$enterprise\"}",
+          "legendFormat": "User-initiated prompts",
+          "refId": "A"
+        },
+        {
+          "expr": "github_copilot_daily_active_users{enterprise=\"$enterprise\"}",
+          "legendFormat": "Daily active users",
+          "refId": "B"
+        }
+      ],
+      "title": "Prompt Depth vs Active Users",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Counts users who used chat, agent, or CLI in each daily export. Good for understanding behavior shifts.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Users used chat"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d08cff"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Users used agent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Users used CLI"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#7aa2ff"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 209,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(github_copilot_user_used_chat{enterprise=\"$enterprise\"})",
+          "legendFormat": "Used chat",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(github_copilot_user_used_agent{enterprise=\"$enterprise\"})",
+          "legendFormat": "Used agent",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(github_copilot_user_used_cli{enterprise=\"$enterprise\"})",
+          "legendFormat": "Used CLI",
+          "refId": "C"
+        }
+      ],
+      "title": "User-Level Usage Flags",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Average prompts per active user over time. Helpful for spotting deeper engagement versus light-touch use.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Prompts per active user"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "id": 210,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "github_copilot_user_initiated_interaction_count{enterprise=\"$enterprise\"} / clamp_min(github_copilot_daily_active_users{enterprise=\"$enterprise\"},1)",
+          "legendFormat": "Prompts per active user",
+          "refId": "A"
+        }
+      ],
+      "title": "Prompts per Active User",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Top Copilot features by prompt volume in the selected time range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -975,7 +955,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.feature}"
         },
         "overrides": []
       },
@@ -985,7 +966,259 @@
         "x": 0,
         "y": 25
       },
-      "id": 111,
+      "id": 211,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (feature) (sum_over_time(github_copilot_user_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{feature}}"
+        }
+      ],
+      "title": "Feature Usage by Prompt Count",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Top IDEs by Copilot prompt count in the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none",
+          "displayName": "${__field.labels.ide}"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 25
+      },
+      "id": 212,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (ide) (sum_over_time(github_copilot_user_ide_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{ide}}"
+        }
+      ],
+      "title": "IDE Usage by Prompt Count",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Top models by Copilot prompt count in the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none",
+          "displayName": "${__field.labels.model}"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 25
+      },
+      "id": 213,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{model}}"
+        }
+      ],
+      "title": "Model Usage by Prompt Count",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Programming languages with the most Copilot-assisted added lines of code.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none",
+          "displayName": "${__field.labels.language}"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "id": 214,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (language) (sum_over_time(github_copilot_user_language_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{language}}"
+        }
+      ],
+      "title": "Language Usage by Added LoC",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "User counts by normalized AI adoption phase in the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none",
+          "displayName": "${__field.labels.ai_adoption_phase}"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "id": 215,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1004,10 +1237,11 @@
         {
           "expr": "sum by (ai_adoption_phase) (last_over_time(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\"}[$__range]))",
           "instant": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{ai_adoption_phase}}"
         }
       ],
-      "title": "AI Adoption Cohorts",
+      "title": "AI Adoption Phases",
       "type": "bargauge"
     },
     {
@@ -1015,129 +1249,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows which models drive the most AI credit spend. Useful for cost governance.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-BlPu"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#7aa2ff",
-                "value": null
-              },
-              {
-                "color": "#d08cff",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 25
-      },
-      "id": 112,
-      "options": {
-        "displayMode": "gradient",
-        "namePlacement": "left",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "text": {}
-      },
-      "targets": [
-        {
-          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\",org=~\"$org\"}[$__range])))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Top Models by Cost",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Shows which organizations account for the most AI credit spend.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-BlPu"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#7aa2ff",
-                "value": null
-              },
-              {
-                "color": "#d08cff",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 25
-      },
-      "id": 113,
-      "options": {
-        "displayMode": "gradient",
-        "namePlacement": "left",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "text": {}
-      },
-      "targets": [
-        {
-          "expr": "topk(12, sum by (org) (sum_over_time(github_copilot_billing_ai_credit_total_net_amount{enterprise=\"$enterprise\",org=~\"$org\"}[$__range])))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Top Orgs by AI Spend",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Users getting the most practical value from Copilot suggestions over the selected time range.",
+      "description": "Power users by prompt volume over the selected time range.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1158,9 +1270,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 41
       },
-      "id": 114,
+      "id": 216,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1175,14 +1287,15 @@
       },
       "targets": [
         {
-          "expr": "topk(20, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "format": "table",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{user_login}}"
         }
       ],
       "transformations": [],
-      "title": "Top Users by Accepted Suggestions",
+      "title": "Top Users by Prompt Count",
       "type": "table"
     },
     {
@@ -1190,7 +1303,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Users with the highest number of Copilot-assisted lines added over the selected time range.",
+      "description": "Users most frequently accepting Copilot suggestions.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1211,9 +1324,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 41
       },
-      "id": 115,
+      "id": 217,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1228,15 +1341,421 @@
       },
       "targets": [
         {
-          "expr": "topk(20, sum by (user_login) (sum_over_time(github_copilot_user_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "format": "table",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{user_login}}"
         }
       ],
       "transformations": [],
-      "title": "Top Users by AI-Assisted LoC Added",
+      "title": "Top Users by Accepted Suggestions",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Most recent CLI prompt-token total. This shows how much token volume is being sent in CLI prompts over the reporting window.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 49
+      },
+      "id": 218,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_cli_prompt_tokens_sum{enterprise=\"$enterprise\"}[90d]))",
+          "refId": "A"
+        }
+      ],
+      "title": "CLI Prompt Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Most recent CLI output-token total. This approximates response token volume from Copilot CLI interactions.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 49
+      },
+      "id": 219,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_cli_output_tokens_sum{enterprise=\"$enterprise\"}[90d]))",
+          "refId": "A"
+        }
+      ],
+      "title": "CLI Output Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Most recent combined CLI token total. This gives a simple single-number view of CLI token usage without needing runtime OpenTelemetry.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 49
+      },
+      "id": 220,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_cli_total_tokens_sum{enterprise=\"$enterprise\"}[90d]))",
+          "refId": "A"
+        }
+      ],
+      "title": "CLI Total Tokens",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Average total CLI tokens per request. Helpful for understanding whether token consumption is increasing faster than request volume.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 49
+      },
+      "id": 221,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_cli_avg_tokens_per_request{enterprise=\"$enterprise\"}[90d]))",
+          "refId": "A"
+        }
+      ],
+      "title": "CLI Avg Tokens / Request",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Trend of prompt, output, and total CLI token volume over time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "id": 222,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "github_copilot_cli_prompt_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "Prompt tokens",
+          "refId": "A"
+        },
+        {
+          "expr": "github_copilot_cli_output_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "Output tokens",
+          "refId": "B"
+        },
+        {
+          "expr": "github_copilot_cli_total_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "Total tokens",
+          "refId": "C"
+        }
+      ],
+      "title": "CLI Token Usage Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Trend of CLI requests and sessions over time. Useful for putting token usage in context.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "id": 223,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "github_copilot_cli_request_count{enterprise=\"$enterprise\"}",
+          "legendFormat": "CLI requests",
+          "refId": "A"
+        },
+        {
+          "expr": "github_copilot_cli_session_count{enterprise=\"$enterprise\"}",
+          "legendFormat": "CLI sessions",
+          "refId": "B"
+        }
+      ],
+      "title": "CLI Request and Session Trend",
+      "type": "timeseries"
     }
   ],
   "refresh": "1h",
@@ -1245,8 +1764,8 @@
   "tags": [
     "github",
     "copilot",
-    "overview",
-    "executive",
+    "usage",
+    "adoption",
     "enterprise"
   ],
   "templating": {
@@ -1270,31 +1789,6 @@
         "refresh": 1,
         "sort": 1,
         "type": "query"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_VICTORIAMETRICS}"
-        },
-        "definition": "label_values(github_copilot_billing_day_marker{enterprise=\"$enterprise\"}, org)",
-        "hide": 0,
-        "includeAll": true,
-        "allValue": ".*",
-        "label": "Billing Orgs",
-        "multi": true,
-        "name": "org",
-        "query": {
-          "query": "label_values(github_copilot_billing_day_marker{enterprise=\"$enterprise\"}, org)",
-          "refId": "VarOrg"
-        },
-        "refresh": 1,
-        "sort": 1,
-        "type": "query"
       }
     ]
   },
@@ -1304,7 +1798,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "GitHub Copilot Enterprise Executive Overview",
+  "title": "GitHub Copilot Usage & Adoption (Final)",
   "uid": null,
   "version": 1,
   "weekStart": ""

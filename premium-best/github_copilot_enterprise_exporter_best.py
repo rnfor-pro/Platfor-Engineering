@@ -1,5 +1,6 @@
 
 import argparse
+import ast
 import hashlib
 import json
 import logging
@@ -26,6 +27,7 @@ SCHEMA_VERSION = "2026-06-exact-diff-v1"
 DEFAULT_GH_API_BASE = "https://api.github.com"
 DEFAULT_GH_API_VERSION = "2026-03-10"
 DEFAULT_HTTP_TIMEOUT = 60
+SIGNED_URL_RETRY_DELAYS_SECONDS = (1, 3, 8)
 
 
 # -----------------------------------------------------------------------------
@@ -40,7 +42,10 @@ class Settings:
     gh_api_version: str
 
     gh_billing_orgs: Tuple[str, ...]
+    gh_cost_center_ids: Tuple[str, ...]
     enable_billing_reports: bool
+    enable_billing_usage_summary: bool
+    billing_scope: str
 
     data_lag_days: int
     poll_interval_seconds: int
@@ -69,16 +74,18 @@ class Settings:
 
     @staticmethod
     def from_env() -> "Settings":
-        gh_billing_orgs = tuple(
-            x.strip() for x in os.getenv("GH_BILLING_ORGS", "").split(",") if x.strip()
-        )
+        gh_billing_orgs = tuple(x.strip() for x in os.getenv("GH_BILLING_ORGS", "").split(",") if x.strip())
+        gh_cost_center_ids = tuple(x.strip() for x in os.getenv("GH_COST_CENTER_IDS", "").split(",") if x.strip())
         return Settings(
             gh_token=os.environ["GH_TOKEN"],
             gh_enterprise=os.environ["GH_ENTERPRISE"],
             gh_api_base=os.getenv("GH_API_BASE", DEFAULT_GH_API_BASE).rstrip("/"),
             gh_api_version=os.getenv("GH_API_VERSION", DEFAULT_GH_API_VERSION),
             gh_billing_orgs=gh_billing_orgs,
+            gh_cost_center_ids=gh_cost_center_ids,
             enable_billing_reports=os.getenv("ENABLE_BILLING_REPORTS", "false").lower() == "true",
+            enable_billing_usage_summary=os.getenv("ENABLE_BILLING_USAGE_SUMMARY", "true").lower() == "true",
+            billing_scope=os.getenv("BILLING_SCOPE", "enterprise").strip().lower(),
             data_lag_days=int(os.getenv("DATA_LAG_DAYS", "2")),
             poll_interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", "21600")),
             bootstrap_28d=os.getenv("BOOTSTRAP_28D", "false").lower() == "true",
@@ -146,6 +153,12 @@ DRIFT_POINTS = Counter(
 ERRORS = Counter(
     "github_copilot_exporter_errors_total",
     "How many collector cycles failed",
+    ["enterprise"],
+)
+
+FAILED_BACKFILL_DAYS = Counter(
+    "github_copilot_exporter_failed_backfill_days_total",
+    "How many backfill days failed and were skipped",
     ["enterprise"],
 )
 
@@ -253,6 +266,55 @@ def parse_json_or_ndjson(text: str) -> Any:
         return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
+def normalize_scalar_label_value(value: Any) -> str:
+    """
+    Normalize label-like values coming back from GitHub reports.
+
+    Protects against malformed stringified containers such as:
+      "{'power_user'}"
+      "['power_user']"
+      '{"ai_adoption_phase":"power_user"}'
+    """
+    if value is None:
+        return "unknown"
+
+    if isinstance(value, (int, float, bool)):
+        return str(value).strip() or "unknown"
+
+    if isinstance(value, dict):
+        for key in ("ai_adoption_phase", "phase", "value", "name", "slug"):
+            if key in value and value[key] is not None:
+                return normalize_scalar_label_value(value[key])
+        if len(value) == 1:
+            _, only_value = next(iter(value.items()))
+            return normalize_scalar_label_value(only_value)
+        return str(value).strip() or "unknown"
+
+    if isinstance(value, (list, tuple, set)):
+        seq = list(value)
+        if len(seq) == 1:
+            return normalize_scalar_label_value(seq[0])
+        return ",".join(normalize_scalar_label_value(x) for x in seq) or "unknown"
+
+    s = str(value).strip()
+    if not s:
+        return "unknown"
+
+    if s[0] in "{[(" and s[-1] in "}])":
+        try:
+            parsed = ast.literal_eval(s)
+            return normalize_scalar_label_value(parsed)
+        except Exception:
+            pass
+        try:
+            parsed = json.loads(s)
+            return normalize_scalar_label_value(parsed)
+        except Exception:
+            pass
+
+    return s
+
+
 # -----------------------------------------------------------------------------
 # GitHub API access
 # -----------------------------------------------------------------------------
@@ -276,17 +338,64 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
-    def download_chunks(self, download_links: Sequence[str]) -> List[Any]:
-        chunks: List[Any] = []
-        for link in download_links:
-            resp = self.download.get(link, timeout=DEFAULT_HTTP_TIMEOUT)
-            resp.raise_for_status()
-            parsed = parse_json_or_ndjson(resp.text)
-            if isinstance(parsed, list):
-                chunks.extend(parsed)
-            else:
-                chunks.append(parsed)
-        return chunks
+
+    def download_chunks(
+        self,
+        download_links: Sequence[str],
+        refresh_links_fn: Optional[Any] = None,
+        report_name: str = "",
+    ) -> List[Any]:
+        """
+        Download signed GitHub report chunks with refresh-and-retry behavior.
+
+        If GitHub returns 403 for a signed download URL, request fresh metadata
+        and retry up to the configured backoff attempts before failing.
+        """
+        links = [str(x) for x in download_links if x]
+        if not links:
+            return []
+
+        last_exc: Optional[Exception] = None
+        for attempt_index, delay in enumerate((0, *SIGNED_URL_RETRY_DELAYS_SECONDS), start=1):
+            chunks: List[Any] = []
+            try:
+                if delay:
+                    time.sleep(delay)
+                for link in links:
+                    resp = self.download.get(link, timeout=DEFAULT_HTTP_TIMEOUT)
+                    if resp.status_code == 403:
+                        raise requests.HTTPError("403 signed url forbidden", response=resp)
+                    resp.raise_for_status()
+                    parsed = parse_json_or_ndjson(resp.text)
+                    if isinstance(parsed, list):
+                        chunks.extend(parsed)
+                    else:
+                        chunks.append(parsed)
+                return chunks
+            except requests.HTTPError as exc:
+                last_exc = exc
+                response = getattr(exc, "response", None)
+                status = getattr(response, "status_code", None)
+                if status == 403 and refresh_links_fn is not None and attempt_index <= len(SIGNED_URL_RETRY_DELAYS_SECONDS):
+                    logging.warning(
+                        "Signed report download returned 403 for report=%s on attempt=%s. Refreshing metadata and retrying.",
+                        report_name or "unknown",
+                        attempt_index,
+                    )
+                    refreshed = refresh_links_fn()
+                    links = [str(x) for x in refreshed if x]
+                    if not links:
+                        logging.warning(
+                            "Metadata refresh for report=%s returned no download links.",
+                            report_name or "unknown",
+                        )
+                        break
+                    continue
+                raise
+
+        if last_exc:
+            raise last_exc
+        return []
 
     # ------------------------- Usage metadata/report helpers ------------------
 
@@ -294,38 +403,99 @@ class GitHubClient:
         url = f"{self.settings.gh_api_base}{path}"
         return self.get_json(url, params=params)
 
+    def _download_links_from_metadata(self, meta: Any) -> List[str]:
+        """
+        Normalize GitHub report metadata into a list of signed download links.
+
+        Expected shape is usually:
+          {"download_links": ["https://..."]}
+
+        But some endpoints/environments can return:
+        - a bare signed URL string
+        - a JSON-encoded string payload
+        - a list containing strings and/or dicts
+
+        This helper keeps the existing downloader logic intact while accepting
+        those response variants safely.
+        """
+        if meta is None:
+            return []
+
+        if isinstance(meta, dict):
+            links = meta.get("download_links", [])
+            if isinstance(links, list):
+                return [str(x) for x in links if x]
+            if isinstance(links, str):
+                return [links] if links else []
+            return []
+
+        if isinstance(meta, str):
+            meta = meta.strip()
+            if not meta:
+                return []
+            if meta.startswith("http://") or meta.startswith("https://"):
+                return [meta]
+            try:
+                parsed = json.loads(meta)
+            except Exception:
+                return []
+            return self._download_links_from_metadata(parsed)
+
+        if isinstance(meta, list):
+            links: List[str] = []
+            for item in meta:
+                links.extend(self._download_links_from_metadata(item))
+            return links
+
+        return []
+
     def fetch_enterprise_usage_day(self, day: str) -> List[Any]:
-        meta = self._report_metadata(
-            f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-1-day",
-            {"day": day},
+        path = f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-1-day"
+        params = {"day": day}
+        meta = self._report_metadata(path, params)
+        return self.download_chunks(
+            self._download_links_from_metadata(meta),
+            refresh_links_fn=lambda: self._download_links_from_metadata(self._report_metadata(path, params)),
+            report_name=f"enterprise-1-day:{day}",
         )
-        return self.download_chunks(meta.get("download_links", []))
 
     def fetch_enterprise_usage_28d(self) -> List[Any]:
-        meta = self._report_metadata(
-            f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-28-day/latest"
+        path = f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-28-day/latest"
+        meta = self._report_metadata(path)
+        return self.download_chunks(
+            self._download_links_from_metadata(meta),
+            refresh_links_fn=lambda: self._download_links_from_metadata(self._report_metadata(path)),
+            report_name="enterprise-28-day:latest",
         )
-        return self.download_chunks(meta.get("download_links", []))
 
     def fetch_users_usage_day(self, day: str) -> List[Any]:
-        meta = self._report_metadata(
-            f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-1-day",
-            {"day": day},
+        path = f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-1-day"
+        params = {"day": day}
+        meta = self._report_metadata(path, params)
+        return self.download_chunks(
+            self._download_links_from_metadata(meta),
+            refresh_links_fn=lambda: self._download_links_from_metadata(self._report_metadata(path, params)),
+            report_name=f"users-1-day:{day}",
         )
-        return self.download_chunks(meta.get("download_links", []))
 
     def fetch_users_usage_28d(self) -> List[Any]:
-        meta = self._report_metadata(
-            f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-28-day/latest"
+        path = f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-28-day/latest"
+        meta = self._report_metadata(path)
+        return self.download_chunks(
+            self._download_links_from_metadata(meta),
+            refresh_links_fn=lambda: self._download_links_from_metadata(self._report_metadata(path)),
+            report_name="users-28-day:latest",
         )
-        return self.download_chunks(meta.get("download_links", []))
 
     def fetch_user_teams_day(self, day: str) -> List[Any]:
-        meta = self._report_metadata(
-            f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/user-teams-1-day",
-            {"day": day},
+        path = f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/user-teams-1-day"
+        params = {"day": day}
+        meta = self._report_metadata(path, params)
+        return self.download_chunks(
+            self._download_links_from_metadata(meta),
+            refresh_links_fn=lambda: self._download_links_from_metadata(self._report_metadata(path, params)),
+            report_name=f"user-teams-1-day:{day}",
         )
-        return self.download_chunks(meta.get("download_links", []))
 
     # ------------------------------ Seats / billing ---------------------------
 
@@ -349,6 +519,52 @@ class GitHubClient:
 
         return {"total_seats": total_seats or 0, "seat_rows_returned": len(seats), "seats": seats}
 
+    def _safe_billing_get(self, url: str, params: Dict[str, Any], empty_payload: Dict[str, Any]) -> Dict[str, Any]:
+        resp = self.api.get(url, params=params, timeout=DEFAULT_HTTP_TIMEOUT)
+        if resp.status_code == 404:
+            logging.warning("Billing endpoint returned 404 url=%s params=%s", url, params)
+            return empty_payload
+        resp.raise_for_status()
+        return resp.json()
+
+    def fetch_enterprise_billing_usage(
+        self,
+        kind: str,
+        year: int,
+        month: int,
+        day: Optional[int] = None,
+        organization: Optional[str] = None,
+        user: Optional[str] = None,
+        model: Optional[str] = None,
+        product: Optional[str] = None,
+        cost_center_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if kind not in {"premium_request", "ai_credit"}:
+            raise ValueError(f"Unsupported billing kind: {kind}")
+        url = f"{self.settings.gh_api_base}/enterprises/{self.settings.gh_enterprise}/settings/billing/{kind}/usage"
+        params: Dict[str, Any] = {"year": year, "month": month}
+        if day is not None:
+            params["day"] = day
+        if organization:
+            params["organization"] = organization
+        if user:
+            params["user"] = user
+        if model:
+            params["model"] = model
+        if product:
+            params["product"] = product
+        if cost_center_id:
+            params["cost_center_id"] = cost_center_id
+        return self._safe_billing_get(
+            url,
+            params,
+            {
+                "enterprise": self.settings.gh_enterprise,
+                "usageItems": [],
+                "timePeriod": {"year": year, "month": month, "day": day},
+            },
+        )
+
     def fetch_org_billing_usage(self, org: str, kind: str, year: int, month: int, day: Optional[int] = None) -> Dict[str, Any]:
         if kind not in {"premium_request", "ai_credit"}:
             raise ValueError(f"Unsupported billing kind: {kind}")
@@ -356,12 +572,33 @@ class GitHubClient:
         params: Dict[str, Any] = {"year": year, "month": month}
         if day is not None:
             params["day"] = day
-        resp = self.api.get(url, params=params, timeout=DEFAULT_HTTP_TIMEOUT)
-        if resp.status_code == 404:
-            logging.warning("Billing endpoint returned 404 for org=%s kind=%s year=%s month=%s day=%s", org, kind, year, month, day)
-            return {"organization": org, "usageItems": [], "timePeriod": {"year": year, "month": month, "day": day}}
-        resp.raise_for_status()
-        return resp.json()
+        return self._safe_billing_get(
+            url,
+            params,
+            {"organization": org, "usageItems": [], "timePeriod": {"year": year, "month": month, "day": day}},
+        )
+
+    def fetch_enterprise_billing_usage_summary(
+        self,
+        year: int,
+        month: int,
+        day: Optional[int] = None,
+        hour: Optional[int] = None,
+        cost_center_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        url = f"{self.settings.gh_api_base}/enterprises/{self.settings.gh_enterprise}/settings/billing/usage/summary"
+        params: Dict[str, Any] = {"year": year, "month": month}
+        if day is not None:
+            params["day"] = day
+        if hour is not None:
+            params["hour"] = hour
+        if cost_center_id:
+            params["cost_center_id"] = cost_center_id
+        return self._safe_billing_get(
+            url,
+            params,
+            {"enterprise": self.settings.gh_enterprise, "usageItems": [], "timePeriod": {"year": year, "month": month, "day": day}},
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -481,7 +718,7 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
     points: List[MetricPoint] = []
     day = row["day"]
     ts_ms = day_to_midday_ms(day)
-    base = {"enterprise": settings.gh_enterprise, "schema_version": SCHEMA_VERSION}
+    base = {"enterprise": settings.gh_enterprise}
 
     root_fields = {
         "github_copilot_daily_active_users": row.get("daily_active_users"),
@@ -506,7 +743,7 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
     for cohort in row.get("totals_by_ai_adoption_phase") or []:
         labels = {
             **base,
-            "ai_adoption_phase": str(cohort.get("ai_adoption_phase", "unknown")),
+            "ai_adoption_phase": normalize_scalar_label_value(cohort.get("ai_adoption_phase", "unknown")),
         }
         cohort_fields = {
             "github_copilot_ai_adoption_phase_user_count": cohort.get("user_count"),
@@ -542,7 +779,7 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
             points.append(p)
 
     for item in row.get("totals_by_feature") or []:
-        labels = {**base, "feature": str(item.get("feature", "unknown"))}
+        labels = {**base, "feature": normalize_scalar_label_value(item.get("feature", "unknown"))}
         for metric_name, value in {
             "github_copilot_feature_loc_added_sum": item.get("loc_added_sum"),
             "github_copilot_feature_loc_deleted_sum": item.get("loc_deleted_sum"),
@@ -555,7 +792,7 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
                 points.append(p)
 
     for item in row.get("totals_by_ide") or []:
-        labels = {**base, "ide": str(item.get("ide", "unknown"))}
+        labels = {**base, "ide": normalize_scalar_label_value(item.get("ide", "unknown"))}
         for metric_name, value in {
             "github_copilot_ide_loc_added_sum": item.get("loc_added_sum"),
             "github_copilot_ide_loc_deleted_sum": item.get("loc_deleted_sum"),
@@ -570,8 +807,8 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
     for item in row.get("totals_by_language_feature") or []:
         labels = {
             **base,
-            "language": str(item.get("language", "unknown")),
-            "feature": str(item.get("feature", "unknown")),
+            "language": normalize_scalar_label_value(item.get("language", "unknown")),
+            "feature": normalize_scalar_label_value(item.get("feature", "unknown")),
         }
         for metric_name, value in {
             "github_copilot_language_feature_loc_added_sum": item.get("loc_added_sum"),
@@ -593,6 +830,18 @@ def build_enterprise_usage_points(row: Dict[str, Any], settings: Settings) -> Li
         "github_copilot_cli_prompt_tokens_sum": cli_token.get("prompt_tokens_sum"),
         "github_copilot_cli_avg_tokens_per_request": cli_token.get("avg_tokens_per_request"),
     }
+    prompt_tokens = coerce_number(cli_token.get("prompt_tokens_sum"))
+    output_tokens = coerce_number(cli_token.get("output_tokens_sum"))
+    request_count = coerce_number(cli.get("request_count"))
+    session_count = coerce_number(cli.get("session_count"))
+    if prompt_tokens is not None or output_tokens is not None:
+        cli_fields["github_copilot_cli_total_tokens_sum"] = (prompt_tokens or 0.0) + (output_tokens or 0.0)
+    if request_count and request_count > 0 and prompt_tokens is not None:
+        cli_fields["github_copilot_cli_avg_prompt_tokens_per_request"] = prompt_tokens / request_count
+    if request_count and request_count > 0 and output_tokens is not None:
+        cli_fields["github_copilot_cli_avg_output_tokens_per_request"] = output_tokens / request_count
+    if session_count and session_count > 0 and (prompt_tokens is not None or output_tokens is not None):
+        cli_fields["github_copilot_cli_avg_total_tokens_per_session"] = ((prompt_tokens or 0.0) + (output_tokens or 0.0)) / session_count
     for metric_name, value in cli_fields.items():
         p = build_point(metric_name, base, value, ts_ms)
         if p:
@@ -608,11 +857,10 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
     points: List[MetricPoint] = []
     day = row["day"]
     ts_ms = day_to_midday_ms(day)
-    user_login = str(row.get("user_login", "unknown"))
-    user_id = str(row.get("user_id", "unknown"))
+    user_login = normalize_scalar_label_value(row.get("user_login", "unknown"))
+    user_id = normalize_scalar_label_value(row.get("user_id", "unknown"))
     base = {
         "enterprise": settings.gh_enterprise,
-        "schema_version": SCHEMA_VERSION,
         "user_login": user_login,
         "user_id": user_id,
     }
@@ -642,13 +890,13 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
 
     ai_adoption_phase = row.get("ai_adoption_phase")
     if ai_adoption_phase:
-        labels = {**base, "ai_adoption_phase": str(ai_adoption_phase)}
+        labels = {**base, "ai_adoption_phase": normalize_scalar_label_value(ai_adoption_phase)}
         p = build_point("github_copilot_user_ai_adoption_phase", labels, 1, ts_ms)
         if p:
             points.append(p)
 
     for item in row.get("totals_by_ide") or []:
-        ide = str(item.get("ide", "unknown"))
+        ide = normalize_scalar_label_value(item.get("ide", "unknown"))
         ide_version = ""
         plugin_version = ""
 
@@ -688,7 +936,7 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
                 points.append(p)
 
     for item in row.get("totals_by_feature") or []:
-        labels = {**base, "feature": str(item.get("feature", "unknown"))}
+        labels = {**base, "feature": normalize_scalar_label_value(item.get("feature", "unknown"))}
         for metric_name, value in {
             "github_copilot_user_feature_prompt_count": item.get("user_initiated_interaction_count"),
             "github_copilot_user_feature_code_generation_activity_count": item.get("code_generation_activity_count"),
@@ -702,8 +950,8 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
     for item in row.get("totals_by_language_feature") or []:
         labels = {
             **base,
-            "language": str(item.get("language", "unknown")),
-            "feature": str(item.get("feature", "unknown")),
+            "language": normalize_scalar_label_value(item.get("language", "unknown")),
+            "feature": normalize_scalar_label_value(item.get("feature", "unknown")),
         }
         for metric_name, value in {
             "github_copilot_user_language_feature_loc_added_sum": item.get("loc_added_sum"),
@@ -716,8 +964,8 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
     for item in row.get("totals_by_model_feature") or []:
         labels = {
             **base,
-            "model": str(item.get("model", "unknown")),
-            "feature": str(item.get("feature", "unknown")),
+            "model": normalize_scalar_label_value(item.get("model", "unknown")),
+            "feature": normalize_scalar_label_value(item.get("feature", "unknown")),
         }
         for metric_name, value in {
             "github_copilot_user_model_feature_prompt_count": item.get("user_initiated_interaction_count"),
@@ -730,33 +978,170 @@ def build_user_usage_points(row: Dict[str, Any], settings: Settings) -> List[Met
     return points
 
 
+
 def build_user_team_points(row: Dict[str, Any], settings: Settings) -> List[MetricPoint]:
+    """
+    Emit raw team-membership rows from the enterprise user-teams report.
+
+    GitHub documents enterprise user-teams rows with fields such as:
+      - user_id
+      - user_login
+      - day
+      - enterprise_id
+      - team_id
+      - slug
+
+    Teams with fewer than 5 seated Copilot users are excluded from this report.
+    """
     points: List[MetricPoint] = []
     day = row["day"]
     ts_ms = day_to_midday_ms(day)
-    user_login = str(row.get("user_login", "unknown"))
-    team_slug = str(row.get("team_slug", row.get("team", "unknown")))
-    organization_login = str(row.get("organization_login", row.get("org", "unknown")))
+    user_login = normalize_scalar_label_value(row.get("user_login", "unknown"))
+    user_id = normalize_scalar_label_value(row.get("user_id", "unknown"))
+    team_slug = normalize_scalar_label_value(row.get("slug") or row.get("team_slug") or row.get("team") or "unknown")
+    team_id = normalize_scalar_label_value(row.get("team_id") or "unknown")
+    enterprise_id = normalize_scalar_label_value(row.get("enterprise_id") or "")
+    organization_id = normalize_scalar_label_value(row.get("organization_id") or "")
     base = {
         "enterprise": settings.gh_enterprise,
-        "schema_version": SCHEMA_VERSION,
         "user_login": user_login,
+        "user_id": user_id,
         "team_slug": team_slug,
-        "organization_login": organization_login,
+        "team_id": team_id,
     }
+    if enterprise_id:
+        base["enterprise_id"] = enterprise_id
+    if organization_id:
+        base["organization_id"] = organization_id
+
     p = build_point("github_copilot_user_team_membership", base, 1, ts_ms)
     if p:
         points.append(p)
 
-    team_count_labels = {
+    member_count_labels = {
         "enterprise": settings.gh_enterprise,
-        "schema_version": SCHEMA_VERSION,
         "team_slug": team_slug,
-        "organization_login": organization_login,
+        "team_id": team_id,
     }
-    p = build_point("github_copilot_team_member_count", team_count_labels, 1, ts_ms)
+    if enterprise_id:
+        member_count_labels["enterprise_id"] = enterprise_id
+    if organization_id:
+        member_count_labels["organization_id"] = organization_id
+
+    p = build_point("github_copilot_team_member_count", member_count_labels, 1, ts_ms)
     if p:
         points.append(p)
+    return points
+
+
+
+
+def build_ai_adoption_phase_rollup_points(user_rows: Sequence[Dict[str, Any]], settings: Settings) -> List[MetricPoint]:
+    """
+    Fallback cohort aggregates built from per-user daily rows when the enterprise
+    aggregate row does not include totals_by_ai_adoption_phase for a day.
+    """
+    by_day_phase: Dict[Tuple[str, str], Dict[str, float]] = {}
+    distinct_users: Dict[Tuple[str, str], Set[str]] = {}
+
+    for row in user_rows:
+        day = row.get("day")
+        phase = normalize_scalar_label_value(row.get("ai_adoption_phase") or "").strip()
+        if not day or not phase:
+            continue
+        key = (day, phase)
+        user_id = normalize_scalar_label_value(row.get("user_id", "unknown"))
+        distinct_users.setdefault(key, set()).add(user_id)
+        agg = by_day_phase.setdefault(key, {
+            "prompt_count": 0.0,
+            "code_generation_activity_count": 0.0,
+            "code_acceptance_activity_count": 0.0,
+            "loc_added_sum": 0.0,
+        })
+        agg["prompt_count"] += float(coerce_number(row.get("user_initiated_interaction_count")) or 0.0)
+        agg["code_generation_activity_count"] += float(coerce_number(row.get("code_generation_activity_count")) or 0.0)
+        agg["code_acceptance_activity_count"] += float(coerce_number(row.get("code_acceptance_activity_count")) or 0.0)
+        agg["loc_added_sum"] += float(coerce_number(row.get("loc_added_sum")) or 0.0)
+
+    points: List[MetricPoint] = []
+    for (day, phase), agg in sorted(by_day_phase.items()):
+        ts_ms = day_to_midday_ms(day)
+        labels = {"enterprise": settings.gh_enterprise, "ai_adoption_phase": phase}
+        for metric_name, value in {
+            "github_copilot_ai_adoption_phase_user_count": len(distinct_users.get((day, phase), set())),
+            "github_copilot_ai_adoption_phase_prompt_count": agg["prompt_count"],
+            "github_copilot_ai_adoption_phase_code_generation_activity_count": agg["code_generation_activity_count"],
+            "github_copilot_ai_adoption_phase_code_acceptance_activity_count": agg["code_acceptance_activity_count"],
+            "github_copilot_ai_adoption_phase_loc_added_sum": agg["loc_added_sum"],
+        }.items():
+            p = build_point(metric_name, labels, value, ts_ms)
+            if p:
+                points.append(p)
+    return points
+
+
+def build_team_rollup_points(
+    user_rows: Sequence[Dict[str, Any]],
+    team_rows: Sequence[Dict[str, Any]],
+    settings: Settings,
+) -> List[MetricPoint]:
+    """
+    Build team-level daily metrics by joining daily user-teams rows to daily
+    per-user usage rows, following GitHub's documented approach.
+    """
+    usage_index: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for row in user_rows:
+        day = str(row.get("day") or "")
+        user_id = str(row.get("user_id") or "")
+        if day and user_id:
+            usage_index[(day, user_id)] = row
+
+    by_team_day: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    for team_row in team_rows:
+        day = str(team_row.get("day") or "")
+        user_id = str(team_row.get("user_id") or "")
+        team_id = normalize_scalar_label_value(team_row.get("team_id") or "unknown")
+        team_slug = normalize_scalar_label_value(team_row.get("slug") or team_row.get("team_slug") or team_row.get("team") or "unknown")
+        if not day or not user_id:
+            continue
+
+        key = (day, team_id, team_slug)
+        agg = by_team_day.setdefault(key, {
+            "users": set(),
+            "members": set(),
+            "prompt_count": 0.0,
+            "code_generation_activity_count": 0.0,
+            "code_acceptance_activity_count": 0.0,
+            "loc_added_sum": 0.0,
+        })
+        agg["members"].add(user_id)
+
+        user_row = usage_index.get((day, user_id))
+        if not user_row:
+            continue
+
+        agg["users"].add(user_id)
+        agg["prompt_count"] += float(coerce_number(user_row.get("user_initiated_interaction_count")) or 0.0)
+        agg["code_generation_activity_count"] += float(coerce_number(user_row.get("code_generation_activity_count")) or 0.0)
+        agg["code_acceptance_activity_count"] += float(coerce_number(user_row.get("code_acceptance_activity_count")) or 0.0)
+        agg["loc_added_sum"] += float(coerce_number(user_row.get("loc_added_sum")) or 0.0)
+
+    points: List[MetricPoint] = []
+    for (day, team_id, team_slug), agg in sorted(by_team_day.items()):
+        ts_ms = day_to_midday_ms(day)
+        labels = {"enterprise": settings.gh_enterprise, "team_id": team_id, "team_slug": team_slug}
+        for metric_name, value in {
+            "github_copilot_team_member_count": len(agg["members"]),
+            "github_copilot_team_active_users": len(agg["users"]),
+            "github_copilot_team_prompt_count": agg["prompt_count"],
+            "github_copilot_team_code_generation_activity_count": agg["code_generation_activity_count"],
+            "github_copilot_team_code_acceptance_activity_count": agg["code_acceptance_activity_count"],
+            "github_copilot_team_loc_added_sum": agg["loc_added_sum"],
+        }.items():
+            p = build_point(metric_name, labels, value, ts_ms)
+            if p:
+                points.append(p)
+
     return points
 
 
@@ -778,7 +1163,6 @@ def build_enterprise_seat_points(seat_payload: Dict[str, Any], settings: Setting
     ts_ms = snapshot_day_ms(target_date)
     base = {
         "enterprise": settings.gh_enterprise,
-        "schema_version": SCHEMA_VERSION,
     }
 
     seats = seat_payload.get("seats", [])
@@ -866,6 +1250,9 @@ def build_enterprise_seat_points(seat_payload: Dict[str, Any], settings: Setting
         "github_copilot_enterprise_seat_active_last_90d_total": active_last_90d,
         "github_copilot_enterprise_seat_never_active_total": never_active,
         "github_copilot_enterprise_seat_pending_cancellation_total": pending_cancel,
+        "github_copilot_enterprise_seat_coverage_ratio_7d": (active_last_7d / total_seats * 100.0) if total_seats else 0.0,
+        "github_copilot_enterprise_seat_coverage_ratio_28d": (active_last_28d / total_seats * 100.0) if total_seats else 0.0,
+        "github_copilot_enterprise_seat_coverage_ratio_90d": (active_last_90d / total_seats * 100.0) if total_seats else 0.0,
     }
     for metric_name, value in summary_fields.items():
         p = build_point(metric_name, base, value, ts_ms)
@@ -895,94 +1282,206 @@ def build_enterprise_seat_points(seat_payload: Dict[str, Any], settings: Setting
     return points
 
 
-def build_billing_points(org: str, payload: Dict[str, Any], kind: str, settings: Settings) -> List[MetricPoint]:
+def camel_to_snake(name: str) -> str:
+    out: List[str] = []
+    for i, ch in enumerate(name):
+        if ch.isupper() and i > 0 and (not name[i - 1].isupper() or (i + 1 < len(name) and not name[i + 1].isupper())):
+            out.append("_")
+        out.append(ch.lower())
+    return "".join(out)
+
+
+def apply_billing_dimension_aliases(labels: Dict[str, str], org: str, item: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
     """
-    Organization billing usage: premium requests and AI credits.
+    Standardize organization-style billing labels so dashboards can group by a
+    single predictable dimension even when GitHub returns multiple variants.
+    """
+    item = item or {}
+    normalized = dict(labels)
+
+    org_slug = str(item.get("organization") or org or "")
+    org_name = str(item.get("organizationName") or "")
+    repo_name = str(item.get("repositoryName") or "")
+
+    if org_slug:
+        normalized["org"] = org_slug
+        normalized["organization"] = org_slug
+    elif org and org != "all":
+        normalized["org"] = str(org)
+        normalized["organization"] = str(org)
+
+    if org_name:
+        normalized["organization_name"] = org_name
+    if repo_name:
+        normalized["repository_name"] = repo_name
+    return normalized
+
+
+def extract_time_period_day(payload: Dict[str, Any]) -> Optional[date]:
+    time_period = payload.get("timePeriod") or {}
+    try:
+        year = int(time_period.get("year"))
+        month = int(time_period.get("month"))
+        day = int(time_period.get("day")) if time_period.get("day") is not None else None
+    except (TypeError, ValueError):
+        return None
+    if day is None:
+        return None
+    return date(year, month, day)
+
+
+STANDARD_BILLING_NUMERIC_FIELDS = {
+    "grossQuantity": "gross_quantity",
+    "grossAmount": "gross_amount",
+    "discountQuantity": "discount_quantity",
+    "discountAmount": "discount_amount",
+    "netQuantity": "net_quantity",
+    "netAmount": "net_amount",
+}
+
+
+def build_billing_points(
+    org: str,
+    payload: Dict[str, Any],
+    kind: str,
+    settings: Settings,
+    source_scope: str = "organization",
+    cost_center_id: Optional[str] = None,
+) -> List[MetricPoint]:
+    """
+    Billing usage: premium requests and AI credits.
+
+    Supports both enterprise-scoped billing endpoints and legacy organization-scoped
+    endpoints while preserving existing metric names.
     """
     points: List[MetricPoint] = []
-    time_period = payload.get("timePeriod") or {}
-    year = int(time_period.get("year"))
-    month = int(time_period.get("month"))
-    day = int(time_period.get("day")) if time_period.get("day") is not None else None
-    if day is None:
-        # Daily exact-diff is the primary path. Skip monthly-only payloads here.
+    target_day = extract_time_period_day(payload)
+    if target_day is None:
         return []
-    target_day = date(year, month, day)
     ts_ms = snapshot_day_ms(target_day)
 
     family = "premium_request" if kind == "premium_request" else "ai_credit"
     base = {
         "enterprise": settings.gh_enterprise,
-        "schema_version": SCHEMA_VERSION,
         "org": org,
         "billing_family": family,
+        "billing_scope": source_scope,
     }
+    if cost_center_id:
+        base["cost_center_id"] = cost_center_id
 
     day_marker = build_point("github_copilot_billing_day_marker", base, 1, ts_ms)
     if day_marker:
         points.append(day_marker)
 
-    total_accumulators: Dict[str, float] = {
-        "gross_quantity": 0.0,
-        "gross_amount": 0.0,
-        "discount_quantity": 0.0,
-        "discount_amount": 0.0,
-        "net_quantity": 0.0,
-        "net_amount": 0.0,
-    }
-
+    totals: Dict[str, float] = {}
     usage_items = payload.get("usageItems", [])
     for item in usage_items:
-        model = str(item.get("model", "unknown"))
-        unit_type = str(item.get("unitType", "unknown"))
-        sku = str(item.get("sku", "unknown"))
-        product = str(item.get("product", "unknown"))
-        price_per_unit = item.get("pricePerUnit")
+        labels = dict(base)
+        labels.update(
+            {
+                "model": normalize_scalar_label_value(item.get("model", "unknown")),
+                "unit_type": str(item.get("unitType", "unknown")),
+                "sku": str(item.get("sku", "unknown")),
+                "product": str(item.get("product", "unknown")),
+            }
+        )
+        labels = apply_billing_dimension_aliases(labels, org, item)
 
-        labels = {
-            **base,
-            "model": model,
-            "unit_type": unit_type,
-            "sku": sku,
-            "product": product,
-        }
+        price_per_unit = item.get("pricePerUnit")
         if price_per_unit is not None:
-            p = build_point(
-                f"github_copilot_billing_{family}_price_per_unit",
-                labels,
-                price_per_unit,
-                ts_ms,
-            )
+            p = build_point(f"github_copilot_billing_{family}_price_per_unit", labels, price_per_unit, ts_ms)
             if p:
                 points.append(p)
 
-        for field_name, metric_suffix in [
-            ("grossQuantity", "gross_quantity"),
-            ("grossAmount", "gross_amount"),
-            ("discountQuantity", "discount_quantity"),
-            ("discountAmount", "discount_amount"),
-            ("netQuantity", "net_quantity"),
-            ("netAmount", "net_amount"),
-        ]:
+        seen_fields = set()
+        for field_name, metric_suffix in STANDARD_BILLING_NUMERIC_FIELDS.items():
+            seen_fields.add(field_name)
             value = item.get(field_name)
             if value is not None:
-                total_accumulators[metric_suffix] += float(value)
-            p = build_point(
-                f"github_copilot_billing_{family}_{metric_suffix}",
-                labels,
-                value,
-                ts_ms,
-            )
+                totals[metric_suffix] = totals.get(metric_suffix, 0.0) + float(value)
+            p = build_point(f"github_copilot_billing_{family}_{metric_suffix}", labels, value, ts_ms)
             if p:
                 points.append(p)
 
-    for suffix, total in total_accumulators.items():
-        p = build_point(
-            f"github_copilot_billing_{family}_total_{suffix}",
-            base,
-            total,
-            ts_ms,
-        )
+        # Emit any additional numeric billing fields GitHub adds in the future.
+        for field_name, value in item.items():
+            if field_name in seen_fields or field_name in {"model", "unitType", "sku", "product", "pricePerUnit", "organization", "organizationName", "repositoryName"}:
+                continue
+            num = coerce_number(value)
+            if num is None:
+                continue
+            metric_suffix = camel_to_snake(field_name)
+            totals[metric_suffix] = totals.get(metric_suffix, 0.0) + float(num)
+            p = build_point(f"github_copilot_billing_{family}_{metric_suffix}", labels, num, ts_ms)
+            if p:
+                points.append(p)
+
+    for suffix, total in sorted(totals.items()):
+        p = build_point(f"github_copilot_billing_{family}_total_{suffix}", base, total, ts_ms)
+        if p:
+            points.append(p)
+
+    return points
+
+
+def build_billing_usage_summary_points(
+    payload: Dict[str, Any],
+    settings: Settings,
+    cost_center_id: Optional[str] = None,
+) -> List[MetricPoint]:
+    """
+    Enterprise billing usage summary across all paid GitHub products.
+
+    This complements Copilot-specific billing data with higher-level enterprise spend
+    and cost-center metrics documented in GitHub's billing usage API.
+    """
+    points: List[MetricPoint] = []
+    target_day = extract_time_period_day(payload)
+    if target_day is None:
+        return []
+    ts_ms = snapshot_day_ms(target_day)
+    base = {
+        "enterprise": settings.gh_enterprise,
+        "billing_scope": "enterprise_summary",
+    }
+    if cost_center_id:
+        base["cost_center_id"] = cost_center_id
+
+    marker = build_point("github_billing_usage_summary_day_marker", base, 1, ts_ms)
+    if marker:
+        points.append(marker)
+
+    totals: Dict[str, float] = {}
+    for item in payload.get("usageItems", []):
+        labels = dict(base)
+        for src_key, label_key in {
+            "product": "product",
+            "sku": "sku",
+            "unitType": "unit_type",
+        }.items():
+            if item.get(src_key) is not None:
+                labels[label_key] = str(item.get(src_key))
+        labels = apply_billing_dimension_aliases(labels, "", item)
+
+        if item.get("pricePerUnit") is not None:
+            p = build_point("github_billing_usage_summary_price_per_unit", labels, item.get("pricePerUnit"), ts_ms)
+            if p:
+                points.append(p)
+
+        for field_name in ["quantity", "grossQuantity", "grossAmount", "discountQuantity", "discountAmount", "netQuantity", "netAmount"]:
+            value = item.get(field_name)
+            num = coerce_number(value)
+            if num is None:
+                continue
+            suffix = camel_to_snake(field_name)
+            totals[suffix] = totals.get(suffix, 0.0) + float(num)
+            p = build_point(f"github_billing_usage_summary_{suffix}", labels, num, ts_ms)
+            if p:
+                points.append(p)
+
+    for suffix, total in sorted(totals.items()):
+        p = build_point(f"github_billing_usage_summary_total_{suffix}", base, total, ts_ms)
         if p:
             points.append(p)
 
@@ -1107,23 +1606,57 @@ class CopilotExporter:
         total += self._import_family_points("user_usage", day, user_points)
 
         team_rows = extract_rows(self.github.fetch_user_teams_day(day))
+        logging.info("Fetched user_teams rows day=%s count=%s", day, len(team_rows))
         team_points: List[MetricPoint] = []
         for row in team_rows:
             team_points.extend(build_user_team_points(row, self.settings))
         total += self._import_family_points("user_teams", day, team_points)
 
+        team_rollup_points = build_team_rollup_points(user_rows, team_rows, self.settings)
+        total += self._import_family_points("team_rollups", day, team_rollup_points)
+
+        cohort_rollup_points = build_ai_adoption_phase_rollup_points(user_rows, self.settings)
+        logging.info("Built cohort_rollup points day=%s count=%s", day, len(cohort_rollup_points))
+        total += self._import_family_points("cohort_rollups", day, cohort_rollup_points)
+
         return total
 
     def _process_daily_billing(self, day: str) -> int:
-        if not self.settings.enable_billing_reports or not self.settings.gh_billing_orgs:
+        if not self.settings.enable_billing_reports:
             return 0
         total = 0
         d = datetime.strptime(day, "%Y-%m-%d").date()
-        for org in self.settings.gh_billing_orgs:
-            for kind in ("premium_request", "ai_credit"):
-                payload = self.github.fetch_org_billing_usage(org, kind, d.year, d.month, d.day)
-                points = build_billing_points(org, payload, kind, self.settings)
-                total += self._import_family_points(f"billing_{kind}:{org}", day, points)
+        org_targets = self.settings.gh_billing_orgs or ("all",)
+
+        for kind in ("premium_request", "ai_credit"):
+            if self.settings.billing_scope == "enterprise":
+                # Enterprise aggregate view.
+                aggregate = self.github.fetch_enterprise_billing_usage(kind, d.year, d.month, d.day)
+                aggregate_points = build_billing_points("all", aggregate, kind, self.settings, source_scope="enterprise")
+                total += self._import_family_points(f"billing_{kind}:all", day, aggregate_points)
+
+                # Optional per-org enterprise-filtered slices for team/showback visibility.
+                for org in self.settings.gh_billing_orgs:
+                    payload = self.github.fetch_enterprise_billing_usage(kind, d.year, d.month, d.day, organization=org)
+                    points = build_billing_points(org, payload, kind, self.settings, source_scope="enterprise", cost_center_id=None)
+                    total += self._import_family_points(f"billing_{kind}:{org}", day, points)
+            else:
+                for org in org_targets:
+                    if org == "all":
+                        continue
+                    payload = self.github.fetch_org_billing_usage(org, kind, d.year, d.month, d.day)
+                    points = build_billing_points(org, payload, kind, self.settings, source_scope="organization")
+                    total += self._import_family_points(f"billing_{kind}:{org}", day, points)
+
+        if self.settings.enable_billing_usage_summary:
+            summary_payload = self.github.fetch_enterprise_billing_usage_summary(d.year, d.month, d.day)
+            summary_points = build_billing_usage_summary_points(summary_payload, self.settings)
+            total += self._import_family_points("billing_usage_summary:all", day, summary_points)
+            for cost_center_id in self.settings.gh_cost_center_ids:
+                payload = self.github.fetch_enterprise_billing_usage_summary(d.year, d.month, d.day, cost_center_id=cost_center_id)
+                points = build_billing_usage_summary_points(payload, self.settings, cost_center_id=cost_center_id)
+                total += self._import_family_points(f"billing_usage_summary:cost_center:{cost_center_id}", day, points)
+
         return total
 
     def _process_daily_seats(self, day: str) -> int:
@@ -1181,6 +1714,7 @@ class CopilotExporter:
             self.last_daily_import_day = max(all_days)
         logging.info("Completed exact-diff 28-day bootstrap for enterprise=%s latest_day=%s", self.settings.gh_enterprise, self.last_daily_import_day)
 
+
     def backfill_date_range_once(self) -> None:
         if not self.settings.enable_date_range_backfill or self.backfill_done:
             return
@@ -1200,17 +1734,29 @@ class CopilotExporter:
             self.settings.backfill_end_day,
         )
 
+        failed_days: List[str] = []
         current = start_date
         while current <= end_date:
-            self.process_day(current.isoformat())
+            day = current.isoformat()
+            try:
+                self.process_day(day)
+            except Exception:
+                FAILED_BACKFILL_DAYS.labels(enterprise=self.settings.gh_enterprise).inc()
+                failed_days.append(day)
+                logging.exception(
+                    "Backfill day failed enterprise=%s day=%s; continuing to next day",
+                    self.settings.gh_enterprise,
+                    day,
+                )
             current += timedelta(days=1)
 
         self.backfill_done = True
         logging.info(
-            "Completed exact-diff date-range backfill enterprise=%s start=%s end=%s",
+            "Completed exact-diff date-range backfill enterprise=%s start=%s end=%s failed_days=%s",
             self.settings.gh_enterprise,
             self.settings.backfill_start_day,
             self.settings.backfill_end_day,
+            ",".join(failed_days) if failed_days else "none",
         )
 
     def import_latest_stable_day_if_needed(self) -> None:

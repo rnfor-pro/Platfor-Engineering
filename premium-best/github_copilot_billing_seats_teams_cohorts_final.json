@@ -76,7 +76,7 @@
   "links": [],
   "panels": [
     {
-      "id": 300,
+      "id": 400,
       "type": "text",
       "title": "How to read this dashboard",
       "description": "High-level overview of what this dashboard measures and why it matters.",
@@ -87,7 +87,7 @@
         "y": 0
       },
       "options": {
-        "content": "## GitHub Copilot Code Generation & Delivery Impact\n\nThis dashboard focuses on how Copilot activity translates into **code changes, acceptance, and pull-request outcomes**.\n\n**Leadership:** quantify engineering impact and whether Copilot-supported activity is turning into accepted changes and delivered PRs.  \n**Teams:** see where feature, IDE, model, and language choices drive the most coding impact.  \n**Developers:** understand the relationship between generated suggestions, accepted suggestions, and code output.\n",
+        "content": "## GitHub Copilot Billing, Seats, Teams & Cohorts\n\nThis dashboard connects **license health, billing exposure, team ownership, and adoption maturity**.\n\n**Leadership:** monitor spend, seat utilization, inactive licenses, and the transition from premium requests to AI credits.  \n**Teams:** see where seats are assigned, which teams own them, and how billing aligns to organizational use.  \n**Developers:** understand the operational side of Copilot consumption and where adoption is maturing or lagging.\n",
         "mode": "markdown"
       }
     },
@@ -96,64 +96,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total lines added plus deleted with Copilot assistance over the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 5
-      },
-      "id": 301,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "sum(sum_over_time(github_copilot_loc_added_sum{enterprise=\"$enterprise\"}[$__range])) + sum(sum_over_time(github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}[$__range]))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "LoC Changed with AI",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Total number of Copilot code generation events over the selected time range.",
+      "description": "Total assigned Copilot seats across the enterprise.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -177,10 +120,10 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 4,
+        "x": 0,
         "y": 5
       },
-      "id": 302,
+      "id": 401,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -197,12 +140,12 @@
       },
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "max(last_over_time(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}[30d]))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Generated Suggestions",
+      "title": "Seat Total",
       "type": "stat"
     },
     {
@@ -210,7 +153,64 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Total number of accepted Copilot suggestions over the selected time range.",
+      "description": "Seats with activity in the last 7 days. Strong signal of recent engagement.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 5
+      },
+      "id": 402,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_enterprise_seat_active_last_7d_total{enterprise=\"$enterprise\"}[30d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Active Seats (7d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Seats with activity in the last 90 days. Good for longer-horizon utilization checks.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -237,7 +237,7 @@
         "x": 8,
         "y": 5
       },
-      "id": 303,
+      "id": 403,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -254,12 +254,12 @@
       },
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "max(last_over_time(github_copilot_enterprise_seat_active_last_90d_total{enterprise=\"$enterprise\"}[30d]))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Accepted Suggestions",
+      "title": "Active Seats (90d)",
       "type": "stat"
     },
     {
@@ -267,13 +267,127 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Accepted suggestions divided by generated suggestions. Good quality signal.",
+      "description": "Seats with no observed activity. Highlights unused license spend.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 1,
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 5
+      },
+      "id": 404,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_enterprise_seat_never_active_total{enterprise=\"$enterprise\"}[30d]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Never Active Seats",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Legacy premium-request cost in USD over the selected range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#f5a524",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 5
+      },
+      "id": 405,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(sum(sum_over_time(github_copilot_billing_premium_request_total_net_amount{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Premium Request Cost",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "AI credit cost in USD over the selected range. Primary forward-looking billing metric.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -284,121 +398,7 @@
               }
             ]
           },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 5
-      },
-      "id": 304,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "100 * sum(sum_over_time(github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])) / clamp_min(sum(sum_over_time(github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range])),1)",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Acceptance Rate",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Total PRs created over the selected range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#7aa2ff",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 5
-      },
-      "id": 305,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "sum(sum_over_time(github_copilot_pr_total_created{enterprise=\"$enterprise\"}[$__range]))",
-          "instant": true,
-          "refId": "A"
-        }
-      ],
-      "title": "PRs Created",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Total PRs merged over the selected range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
@@ -408,7 +408,7 @@
         "x": 20,
         "y": 5
       },
-      "id": 306,
+      "id": 406,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -425,12 +425,12 @@
       },
       "targets": [
         {
-          "expr": "sum(sum_over_time(github_copilot_pr_total_merged{enterprise=\"$enterprise\"}[$__range]))",
+          "expr": "max(sum(sum_over_time(github_copilot_billing_ai_credit_total_net_amount{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "PRs Merged",
+      "title": "AI Credit Cost",
       "type": "stat"
     },
     {
@@ -438,7 +438,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Shows how many lines were added and deleted each day with Copilot assistance.",
+      "description": "Tracks total seats, active seats, never-active seats, and pending cancellations over time.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -491,126 +491,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Lines added"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Lines deleted"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#ef4444"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 9
-      },
-      "id": 307,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "github_copilot_loc_added_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Lines added",
-          "refId": "A"
-        },
-        {
-          "expr": "github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Lines deleted",
-          "refId": "B"
-        }
-      ],
-      "title": "Lines Added / Deleted Trend",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Compares suggested additions, accepted additions, and deletions to show the shape of AI-assisted coding impact.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Suggested to add"
+              "options": "Seats total"
             },
             "properties": [
               {
@@ -625,7 +506,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Added"
+              "options": "Active 28d"
             },
             "properties": [
               {
@@ -640,7 +521,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Deleted"
+              "options": "Never active"
             },
             "properties": [
               {
@@ -651,120 +532,11 @@
                 }
               }
             ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 9
-      },
-      "id": 308,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "expr": "github_copilot_loc_suggested_to_add_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Suggested to add",
-          "refId": "A"
-        },
-        {
-          "expr": "github_copilot_loc_added_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Added",
-          "refId": "B"
-        },
-        {
-          "expr": "github_copilot_loc_deleted_sum{enterprise=\"$enterprise\"}",
-          "legendFormat": "Deleted",
-          "refId": "C"
-        }
-      ],
-      "title": "Suggested vs Added vs Deleted",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "description": "Shows whether increases in generation also lead to increases in accepted output.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#79d26b",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Generated"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#8bd3ff"
-                }
-              }
-            ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "Accepted"
+              "options": "Pending cancellation"
             },
             "properties": [
               {
@@ -782,9 +554,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 9
       },
-      "id": 309,
+      "id": 407,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -797,17 +569,22 @@
       },
       "targets": [
         {
-          "expr": "github_copilot_code_generation_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Generated",
+          "expr": "github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}",
+          "legendFormat": "Seat total",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_code_acceptance_activity_count{enterprise=\"$enterprise\"}",
-          "legendFormat": "Accepted",
+          "expr": "github_copilot_enterprise_seat_active_last_28d_total{enterprise=\"$enterprise\"}",
+          "legendFormat": "Active seats 28d",
           "refId": "B"
+        },
+        {
+          "expr": "github_copilot_enterprise_seat_never_active_total{enterprise=\"$enterprise\"}",
+          "legendFormat": "Never active",
+          "refId": "C"
         }
       ],
-      "title": "Generation vs Acceptance Over Time",
+      "title": "Seat Health Trend",
       "type": "timeseries"
     },
     {
@@ -815,7 +592,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Compares PR creation, PR merge counts, and median minutes to merge.",
+      "description": "Compares premium-request quantity and AI credit quantity over time by org.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -868,7 +645,245 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "PR created"
+              "options": "Premium qty - {{org}}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AI credit qty - {{org}}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d08cff"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 408,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (organization) (github_copilot_billing_premium_request_total_net_quantity{enterprise=\"$enterprise\"})",
+          "legendFormat": "Premium requests \u00b7 {{organization}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (organization) (github_copilot_billing_ai_credit_total_net_quantity{enterprise=\"$enterprise\"})",
+          "legendFormat": "AI credits \u00b7 {{organization}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Billing Quantity Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Compares premium-request cost and AI credit cost over time by org.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Premium cost - {{org}}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#f5a524"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AI credit cost - {{org}}"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d08cff"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 409,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (organization) (github_copilot_billing_premium_request_net_amount{enterprise=\"$enterprise\"})",
+          "legendFormat": "Premium request cost \u00b7 {{organization}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (organization) (github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"})",
+          "legendFormat": "AI credit cost \u00b7 {{organization}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Billing Cost Trend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Shows how team membership counts and cohort user counts evolve over time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#79d26b",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "{{team_slug}}"
             },
             "properties": [
               {
@@ -883,29 +898,14 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "PR merged"
+              "options": "{{ai_adoption_phase}}"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#79d26b"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Median minutes to merge"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#f5a524"
+                  "fixedColor": "#d08cff"
                 }
               }
             ]
@@ -918,7 +918,7 @@
         "x": 12,
         "y": 17
       },
-      "id": 310,
+      "id": 410,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -931,22 +931,17 @@
       },
       "targets": [
         {
-          "expr": "github_copilot_pr_total_created{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR created",
+          "expr": "sum by (team_slug) (github_copilot_team_active_users{enterprise=\"$enterprise\"})",
+          "legendFormat": "Team \u00b7 {{team_slug}}",
           "refId": "A"
         },
         {
-          "expr": "github_copilot_pr_total_merged{enterprise=\"$enterprise\"}",
-          "legendFormat": "PR merged",
+          "expr": "sum by (ai_adoption_phase) (github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\"})",
+          "legendFormat": "Phase \u00b7 {{ai_adoption_phase}}",
           "refId": "B"
-        },
-        {
-          "expr": "github_copilot_pr_median_minutes_to_merge{enterprise=\"$enterprise\"}",
-          "legendFormat": "Median minutes to merge",
-          "refId": "C"
         }
       ],
-      "title": "PR Flow and Merge Speed",
+      "title": "Team and Cohort Trend",
       "type": "timeseries"
     },
     {
@@ -954,7 +949,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Which features generate the most added lines of code.",
+      "description": "Seat count by Copilot plan type using the latest available seat snapshot in range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -975,7 +970,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.plan_type}"
         },
         "overrides": []
       },
@@ -985,7 +981,7 @@
         "x": 0,
         "y": 25
       },
-      "id": 311,
+      "id": 411,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1002,12 +998,13 @@
       },
       "targets": [
         {
-          "expr": "topk(12, sum by (feature) (sum_over_time(github_copilot_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, max by (plan_type) (last_over_time(github_copilot_enterprise_seat_plan_total{enterprise=\"$enterprise\"}[30d])))",
           "instant": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{plan_type}}"
         }
       ],
-      "title": "Feature Impact by Added LoC",
+      "title": "Seat Plans",
       "type": "bargauge"
     },
     {
@@ -1015,7 +1012,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Which IDEs are associated with the most Copilot-assisted added lines.",
+      "description": "Seat count by assigning team from the latest available seat snapshot in range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1036,7 +1033,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.assigning_team}"
         },
         "overrides": []
       },
@@ -1046,7 +1044,7 @@
         "x": 8,
         "y": 25
       },
-      "id": 312,
+      "id": 412,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1063,12 +1061,13 @@
       },
       "targets": [
         {
-          "expr": "topk(12, sum by (ide) (sum_over_time(github_copilot_user_ide_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, max by (assigning_team) (last_over_time(github_copilot_enterprise_seat_assigning_team_total{enterprise=\"$enterprise\"}[30d])))",
           "instant": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{assigning_team}}"
         }
       ],
-      "title": "IDE Impact by Added LoC",
+      "title": "Assigning Teams",
       "type": "bargauge"
     },
     {
@@ -1076,7 +1075,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Which AI models are associated with the most user-attributed added lines.",
+      "description": "Which models drive the most AI credit cost.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1097,7 +1096,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "currencyUSD",
+          "displayName": "${__field.labels.model}"
         },
         "overrides": []
       },
@@ -1107,7 +1107,7 @@
         "x": 16,
         "y": 25
       },
-      "id": 313,
+      "id": 413,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1124,12 +1124,13 @@
       },
       "targets": [
         {
-          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{model}}"
         }
       ],
-      "title": "Model Impact by Added LoC",
+      "title": "AI Credit Cost by Model",
       "type": "bargauge"
     },
     {
@@ -1137,7 +1138,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Which programming languages are receiving the most Copilot-assisted added lines.",
+      "description": "Largest reportable teams by Copilot-seated membership. Teams with fewer than five seated users do not appear in GitHub user-teams reports.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1158,17 +1159,18 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.team_slug}"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 33
       },
-      "id": 314,
+      "id": 414,
       "options": {
         "displayMode": "gradient",
         "namePlacement": "left",
@@ -1185,12 +1187,13 @@
       },
       "targets": [
         {
-          "expr": "topk(12, sum by (language) (sum_over_time(github_copilot_user_language_feature_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "topk(12, max by (team_slug) (max_over_time(github_copilot_team_member_count{enterprise=\"$enterprise\"}[$__range])))",
           "instant": true,
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{team_slug}}"
         }
       ],
-      "title": "Language Impact by Added LoC",
+      "title": "Top Teams by Membership",
       "type": "bargauge"
     },
     {
@@ -1198,60 +1201,133 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Users with the highest amount of Copilot-assisted added lines.",
+      "description": "Latest user distribution across adoption phases.",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#79d26b",
+                "color": "#7aa2ff",
                 "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.ai_adoption_phase}"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 33
       },
-      "id": 315,
+      "id": 415,
       "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
           ],
-          "show": false
+          "fields": "",
+          "values": false
         },
-        "showHeader": true
+        "showUnfilled": true,
+        "text": {}
       },
       "targets": [
         {
-          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_loc_added_sum{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "sum by (ai_adoption_phase) (max_over_time(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\"}[$__range]))",
           "instant": true,
-          "format": "table",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{ai_adoption_phase}}"
         }
       ],
-      "transformations": [],
-      "title": "Top Users by Added LoC",
-      "type": "table"
+      "title": "AI Adoption Phase Breakdown",
+      "type": "bargauge"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Users with the most Copilot code generation activity over the selected range.",
+      "description": "Organizations contributing the most AI credit cost over the selected range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7aa2ff",
+                "value": null
+              },
+              {
+                "color": "#d08cff",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "currencyUSD",
+          "displayName": "${__field.labels.organization}"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 33
+      },
+      "id": 416,
+      "options": {
+        "displayMode": "gradient",
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (organization) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{organization}}"
+        }
+      ],
+      "title": "Top Orgs by AI Credit Cost",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Users whose seats are currently pending cancellation. Helpful for operational review.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1264,7 +1340,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.user_login}"
         },
         "overrides": []
       },
@@ -1274,7 +1351,7 @@
         "x": 0,
         "y": 41
       },
-      "id": 316,
+      "id": 417,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1289,14 +1366,15 @@
       },
       "targets": [
         {
-          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_code_generation_activity_count{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "max by (user_login, organization_login, plan_type, assigning_team) (max_over_time(github_copilot_enterprise_seat_pending_cancellation{enterprise=\"$enterprise\"}[30d]))",
           "instant": true,
           "format": "table",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{user_login}} \u00b7 {{organization_login}}"
         }
       ],
       "transformations": [],
-      "title": "Top Users by Generated Suggestions",
+      "title": "Users Pending Cancellation",
       "type": "table"
     },
     {
@@ -1304,7 +1382,7 @@
         "type": "prometheus",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "description": "Users with the most accepted Copilot suggestions over the selected range.",
+      "description": "User-to-team relationships from the daily user-teams report. Useful for joining activity to team ownership.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1317,7 +1395,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "displayName": "${__field.labels.user_login} \u00b7 ${__field.labels.team_slug}"
         },
         "overrides": []
       },
@@ -1327,7 +1406,7 @@
         "x": 12,
         "y": 41
       },
-      "id": 317,
+      "id": 418,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1342,15 +1421,72 @@
       },
       "targets": [
         {
-          "expr": "topk(25, sum by (user_login) (sum_over_time(github_copilot_user_code_acceptance_activity_count{enterprise=\"$enterprise\"}[$__range])))",
+          "expr": "max by (user_login, team_slug) (max_over_time(github_copilot_user_team_membership{enterprise=\"$enterprise\"}[$__range]))",
           "instant": true,
           "format": "table",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "{{user_login}} \u00b7 {{team_slug}}"
         }
       ],
       "transformations": [],
-      "title": "Top Users by Accepted Suggestions",
+      "title": "User-Team Membership",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "description": "Seat coverage ratio over the last 28 days. This is active seats divided by total seats and is a strong summary of overall Copilot license utilization.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 5
+      },
+      "id": 419,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(github_copilot_enterprise_seat_coverage_ratio_28d{enterprise=\"$enterprise\"}[30d]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Seat Coverage Ratio (28d)",
+      "type": "stat"
     }
   ],
   "refresh": "1h",
@@ -1359,9 +1495,10 @@
   "tags": [
     "github",
     "copilot",
-    "codegen",
-    "delivery",
-    "enterprise"
+    "billing",
+    "seats",
+    "teams",
+    "cohorts"
   ],
   "templating": {
     "list": [
@@ -1384,6 +1521,31 @@
         "refresh": 1,
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIAMETRICS}"
+        },
+        "definition": "label_values(github_copilot_billing_day_marker{enterprise=\"$enterprise\"}, org)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "label": "Billing Orgs",
+        "multi": true,
+        "name": "org",
+        "query": {
+          "query": "label_values(github_copilot_billing_day_marker{enterprise=\"$enterprise\"}, org)",
+          "refId": "VarOrg"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
@@ -1393,7 +1555,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "GitHub Copilot Code Generation & Delivery Impact",
+  "title": "GitHub Copilot Billing, Seats, Teams & Cohorts (Final)",
   "uid": null,
   "version": 1,
   "weekStart": ""
