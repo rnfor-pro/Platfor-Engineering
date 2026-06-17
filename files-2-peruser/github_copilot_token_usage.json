@@ -1,0 +1,676 @@
+{
+  "title": "GitHub Copilot Token Usage",
+  "uid": "copilot-token-usage",
+  "tags": [
+    "copilot",
+    "tokens",
+    "ai-credits"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "editable": true,
+  "time": {
+    "from": "now-60d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(github_copilot_cli_session_count, enterprise)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Enterprise",
+        "multi": false,
+        "name": "enterprise",
+        "query": {
+          "query": "label_values(github_copilot_cli_session_count, enterprise)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 600,
+      "title": "How to read this dashboard",
+      "type": "text",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [],
+      "options": {
+        "mode": "markdown",
+        "content": "## GitHub Copilot Token Usage\n\nTracks **enterprise-wide CLI-reported token consumption** and the **AI credit billing** tied to model usage -- the two places GitHub exposes token-related data.\n\n- Token volume (`github_copilot_cli_*_tokens_sum`, `avg_tokens_per_request`, `avg_total_tokens_per_session`) comes from the daily enterprise usage report's `totals_by_cli` block.\n- AI Credit cost by model (`github_copilot_billing_ai_credit_net_amount`) is the **cost** side of model/token consumption, broken out by model.\n\n**Data source:** select your Prometheus-compatible source (VictoriaMetrics or Prometheus) using the *Data source* variable above -- all panels use it via `${datasource}`."
+      }
+    },
+    {
+      "id": 601,
+      "title": "Total Tokens (latest day)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(github_copilot_cli_total_tokens_sum{enterprise=\"$enterprise\"}[1d])",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 602,
+      "title": "Prompt Tokens (latest day)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 4
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(github_copilot_cli_prompt_tokens_sum{enterprise=\"$enterprise\"}[1d])",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 603,
+      "title": "Output Tokens (latest day)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 4
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(github_copilot_cli_output_tokens_sum{enterprise=\"$enterprise\"}[1d])",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 604,
+      "title": "Avg Tokens / Request",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 4
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max_over_time(github_copilot_cli_avg_tokens_per_request{enterprise=\"$enterprise\"}[1d])",
+          "instant": true,
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "yellow",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 605,
+      "title": "Total Token Volume Trend (Prompt + Output)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "github_copilot_cli_prompt_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "prompt tokens",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "github_copilot_cli_output_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "output tokens",
+          "refId": "B",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "github_copilot_cli_total_tokens_sum{enterprise=\"$enterprise\"}",
+          "legendFormat": "total tokens",
+          "refId": "C",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 606,
+      "title": "Token Efficiency Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "description": "Rising avg-tokens-per-request can indicate longer/more complex prompts or larger context windows; falling values may indicate prompt truncation or simpler tasks.",
+      "targets": [
+        {
+          "expr": "github_copilot_cli_avg_tokens_per_request{enterprise=\"$enterprise\"}",
+          "legendFormat": "avg tokens / request (reported)",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "github_copilot_cli_avg_prompt_tokens_per_request{enterprise=\"$enterprise\"}",
+          "legendFormat": "avg prompt tokens / request",
+          "refId": "B",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "github_copilot_cli_avg_output_tokens_per_request{enterprise=\"$enterprise\"}",
+          "legendFormat": "avg output tokens / request",
+          "refId": "C",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        },
+        {
+          "expr": "github_copilot_cli_avg_total_tokens_per_session{enterprise=\"$enterprise\"}",
+          "legendFormat": "avg total tokens / session",
+          "refId": "D",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 607,
+      "title": "AI Credit Cost by Model",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "description": "Cost exposure by model -- the $ side of token consumption, broken out where GitHub's billing API attributes spend to a model.",
+      "targets": [
+        {
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "{{model}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 608,
+      "title": "AI Credit Token-Equivalent Quantity by Model",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "description": "Net quantity consumed by model from AI credit billing -- the closest available proxy for per-model token volume when raw token counts aren't separately exposed per model.",
+      "targets": [
+        {
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_quantity{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "{{model}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 609,
+      "title": "AI Credit Cost by Model \u2014 Trend",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (model) (github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"})",
+          "legendFormat": "{{model}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 610,
+      "title": "Per-User Token Usage \u2014 Data Availability Note",
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [],
+      "options": {
+        "mode": "markdown",
+        "content": "GitHub's Copilot usage API exposes per-user **prompt counts** and **model attribution**, but does **not** expose per-user raw token counts -- token sums (`github_copilot_cli_*_tokens_sum`) are enterprise-wide aggregates only. The panels below use per-user prompt activity (`github_copilot_user_model_feature_prompt_count`) as the closest available per-user, per-model signal, by day/week/month."
+      }
+    },
+    {
+      "id": 611,
+      "title": "Per-User Model Prompt Activity \u2014 Daily",
+      "type": "table",
+      "description": "Daily per-user, per-model prompt counts. This is the finest-grained usage signal GitHub exposes per user (no per-user token counts are available).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (user_login, model) (max_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[1d]))",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 612,
+      "title": "Per-User Model Prompt Activity \u2014 Weekly",
+      "type": "table",
+      "description": "Per-user, per-model prompt counts summed over the selected time range (set range to last 7d for a true weekly view).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(50, sum by (user_login, model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 613,
+      "title": "Top Users \u2014 Prompt Activity Trend",
+      "type": "timeseries",
+      "description": "Daily prompt-count trend for the top 10 users by total activity in the selected range. Use this to spot per-user usage growth/decline over time.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean",
+            "max",
+            "sum"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (user_login) (sum by (user_login) (github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"})))",
+          "legendFormat": "{{user_login}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    }
+  ]
+}

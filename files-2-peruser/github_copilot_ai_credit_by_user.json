@@ -1,0 +1,225 @@
+{
+  "title": "GitHub Copilot AI Credit Usage by User (Estimated)",
+  "uid": "copilot-ai-credit-by-user",
+  "tags": [
+    "copilot",
+    "billing",
+    "ai-credits",
+    "per-user"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "editable": true,
+  "time": {
+    "from": "now-60d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(github_copilot_enterprise_seat_total, enterprise)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Enterprise",
+        "multi": false,
+        "name": "enterprise",
+        "query": {
+          "query": "label_values(github_copilot_enterprise_seat_total, enterprise)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 700,
+      "title": "How to read this dashboard",
+      "type": "text",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "targets": [],
+      "options": {
+        "mode": "markdown",
+        "content": "## AI Credit Usage by User\n\n**Important methodology note:** GitHub's Copilot billing API attributes AI credit cost at the **organization / model / SKU** level only -- it does **not** expose per-user cost. `github_copilot_billing_ai_credit_net_amount` and `github_copilot_billing_ai_credit_net_quantity` have no `user_login` label.\n\nThere is no exact way to map a dollar amount to an individual user from GitHub's API. What this dashboard provides instead:\n\n1. **Actual, exact data** -- per-user, per-model prompt activity (`github_copilot_user_model_feature_prompt_count`), which is the real per-user signal GitHub does expose.\n2. **Estimated cost attribution** -- org-level AI credit cost for a given model, allocated to each user in proportion to that user's share of total prompts for that model. This is a **proportional estimate**, not metered per-user billing, and is labeled as such in every relevant panel.\n\nUse the estimate for relative comparison between users (who is driving cost), not as an exact chargeback figure."
+      }
+    },
+    {
+      "id": 701,
+      "title": "Top Users by Prompt Activity (All Models)",
+      "type": "bargauge",
+      "description": "Exact data: total prompt count per user across all models, for the selected time range.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(15, sum by (user_login) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "{{user_login}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 702,
+      "title": "Per-User Prompt Share by Model",
+      "type": "table",
+      "description": "Exact data: each user's prompt count per model, for the selected range. This is the basis for the proportional cost estimate below.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(100, sum by (user_login, model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 703,
+      "title": "Estimated AI Credit Cost by User (Proportional to Prompt Share)",
+      "type": "table",
+      "description": "ESTIMATE, not metered billing. Computed as: (user's prompt count for model M / total prompts for model M across all users) x (org-level AI credit cost for model M). GitHub does not provide per-user billing -- this distributes the real org-level spend across users by their share of model usage.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (user_login) (\n  (\n    sum by (user_login, model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range]))\n    /\n    on (model) group_left() sum by (model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\"}[$__range]))\n  )\n  *\n  on (model) group_left() sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"}[$__range]))\n)",
+          "instant": true,
+          "format": "table",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    },
+    {
+      "id": 704,
+      "title": "Org-Level AI Credit Cost by Model (Source of Truth)",
+      "type": "bargauge",
+      "description": "The actual, exact cost data from GitHub billing -- shown here as the source the per-user estimate above is derived from.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "datasource": {
+        "type": "${datasource}",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "topk(12, sum by (model) (sum_over_time(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\"}[$__range])))",
+          "instant": true,
+          "legendFormat": "{{model}}",
+          "refId": "A",
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          }
+        }
+      ]
+    }
+  ]
+}
