@@ -1,0 +1,349 @@
+{
+    "__inputs": [
+      {
+        "name": "DS_VICTORIAMETRICS",
+        "label": "VictoriaMetrics",
+        "description": "Prometheus-compatible datasource for gen_ai.* metrics",
+        "type": "datasource",
+        "pluginId": "prometheus"
+      },
+      {
+        "name": "DS_TEMPO",
+        "label": "Tempo",
+        "description": "Trace storage for gen_ai.* spans",
+        "type": "datasource",
+        "pluginId": "tempo"
+      },
+      {
+        "name": "DS_LOKI",
+        "label": "Loki",
+        "description": "Log storage for Copilot chat events",
+        "type": "datasource",
+        "pluginId": "loki"
+      }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "datasource", "id": "tempo", "name": "Tempo", "version": "1.0.0" },
+      { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+      { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "logs", "name": "Logs", "version": "" },
+      { "type": "panel", "id": "traces", "name": "Traces", "version": "" }
+    ],
+    "id": null,
+    "uid": "copilot-otel-opensource",
+    "title": "GitHub Copilot \u2014 OTel (Open Source Stack)",
+    "description": "GitHub Copilot agent and chat telemetry via OpenTelemetry GenAI semantic conventions. Tracks token usage, latency, model adoption, tool calls, errors, and includes trace and log drill-down for debugging individual Copilot interactions. Backed by VictoriaMetrics (metrics), Tempo (traces), and Loki (logs) \u2014 no Azure Monitor / Application Insights dependency.",
+    "tags": ["copilot", "genai", "opentelemetry", "otel", "victoriametrics", "tempo", "loki"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1m",
+    "time": { "from": "now-7d", "to": "now" },
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+  
+    "templating": {
+      "list": [
+        {
+          "name": "DS_VM",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": { "selected": false, "text": "VictoriaMetrics", "value": "${DS_VICTORIAMETRICS}" },
+          "hide": 0,
+          "label": "Metrics datasource"
+        },
+        {
+          "name": "DS_TEMPO_VAR",
+          "type": "datasource",
+          "query": "tempo",
+          "current": { "selected": false, "text": "Tempo", "value": "${DS_TEMPO}" },
+          "hide": 0,
+          "label": "Traces datasource"
+        },
+        {
+          "name": "DS_LOKI_VAR",
+          "type": "datasource",
+          "query": "loki",
+          "current": { "selected": false, "text": "Loki", "value": "${DS_LOKI}" },
+          "hide": 0,
+          "label": "Logs datasource"
+        },
+        {
+          "name": "model",
+          "type": "query",
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "query": "label_values(gen_ai_client_token_usage_sum, gen_ai_request_model)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "current": { "selected": true, "text": "All", "value": "$__all" },
+          "label": "Model"
+        },
+        {
+          "name": "service_name",
+          "type": "query",
+          "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+          "query": "label_values(gen_ai_client_token_usage_sum, service_name)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "current": { "selected": true, "text": "All", "value": "$__all" },
+          "label": "Service"
+        }
+      ]
+    },
+  
+    "panels": [
+      { "id": 100, "type": "row", "title": "Agent Summary Statistics", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 1, "type": "stat", "title": "Total Operations",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_operation_count_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Total Operations" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "decimals": 0, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "Total Input Tokens",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_usage_input_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Total Input Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "decimals": 1, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Total Output Tokens",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_usage_output_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Total Output Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "decimals": 0, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Avg Response Time",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "avg(rate(gen_ai_client_operation_duration_seconds_sum{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]) / rate(gen_ai_client_operation_duration_seconds_count{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg Response Time" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "decimals": 2, "unit": "s" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+  
+      { "id": 101, "type": "row", "title": "Chat & Tool Summary", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 5, "type": "stat", "title": "LLM Calls",
+        "gridPos": { "h": 4, "w": 5, "x": 0, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_client_operation_duration_seconds_count{gen_ai_operation_name=\"chat\", gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "LLM Calls" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "decimals": 2, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 6, "type": "stat", "title": "Chat Sessions",
+        "gridPos": { "h": 4, "w": 5, "x": 5, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_chat_session_count_total{service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Chat Sessions" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "decimals": 0, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 7, "type": "stat", "title": "Tool Calls",
+        "gridPos": { "h": 4, "w": 5, "x": 10, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum(increase(gen_ai_tool_call_count_total{service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Tool Calls" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "decimals": 0, "unit": "short" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 8, "type": "stat", "title": "Avg TTFT",
+        "gridPos": { "h": 4, "w": 4, "x": 15, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "avg(rate(gen_ai_server_time_to_first_token_seconds_sum{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]) / rate(gen_ai_server_time_to_first_token_seconds_count{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg TTFT" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "decimals": 2, "unit": "s" }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+      {
+        "id": 9, "type": "stat", "title": "Error Rate",
+        "gridPos": { "h": 4, "w": 5, "x": 19, "y": 6 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "100 * sum(increase(gen_ai_client_operation_duration_seconds_count{error_type!=\"\", gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range])) / sum(increase(gen_ai_client_operation_duration_seconds_count{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Error Rate" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "decimals": 1, "unit": "percent", "thresholds": { "mode": "absolute", "steps": [
+          { "color": "#5BA85B", "value": null },
+          { "color": "#F0954A", "value": 2 },
+          { "color": "#E0524A", "value": 5 }
+        ] } }, "overrides": [] },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "textMode": "value_and_name" }
+      },
+  
+      { "id": 102, "type": "row", "title": "Usage Over Time", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 10, "type": "barchart", "title": "Operations Over Time",
+        "description": "Count of chat, execute_tool, and invoke_agent operations, stacked by type",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 11 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [
+          { "expr": "sum by (gen_ai_operation_name) (increase(gen_ai_client_operation_duration_seconds_count{gen_ai_operation_name=\"chat\", gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "Count chat" },
+          { "expr": "sum by (gen_ai_operation_name) (increase(gen_ai_client_operation_duration_seconds_count{gen_ai_operation_name=\"execute_tool\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "Count execute_tool" },
+          { "expr": "sum by (gen_ai_operation_name) (increase(gen_ai_client_operation_duration_seconds_count{gen_ai_operation_name=\"invoke_agent\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "Count invoke_agent" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "stacking": { "mode": "normal" } } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Count chat" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] },
+          { "matcher": { "id": "byName", "options": "Count execute_tool" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E8C547" } }] },
+          { "matcher": { "id": "byName", "options": "Count invoke_agent" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5B8FE0" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 11, "type": "barchart", "title": "Token Consumption Over Time by Model",
+        "description": "Total tokens (input + output) consumed per model over time",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 11 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [
+          { "expr": "sum by (gen_ai_request_model) (increase(gen_ai_client_token_usage_sum{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "TotalTokens {{gen_ai_request_model}}" }
+        ],
+        "fieldConfig": { "defaults": { "custom": { "stacking": { "mode": "normal" } }, "unit": "short" }, "overrides": [] },
+        "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } }
+      },
+  
+      { "id": 103, "type": "row", "title": "Model Performance", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 12, "type": "piechart", "title": "Model Usage Distribution",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 21 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum by (gen_ai_request_model) (increase(gen_ai_client_operation_duration_seconds_count{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "{{gen_ai_request_model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 13, "type": "barchart", "title": "Response Duration by Model (Avg / P90)",
+        "gridPos": { "h": 9, "w": 8, "x": 8, "y": 21 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [
+          { "expr": "avg by (gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_sum{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]) / rate(gen_ai_client_operation_duration_seconds_count{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg Duration {{gen_ai_request_model}}" },
+          { "expr": "histogram_quantile(0.90, sum by (le, gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_bucket{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P90 Duration {{gen_ai_request_model}}" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 14, "type": "barchart", "title": "Time to First Token by Model (P50 / P90)",
+        "gridPos": { "h": 9, "w": 8, "x": 16, "y": 21 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le, gen_ai_request_model) (rate(gen_ai_server_time_to_first_token_seconds_bucket{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P50 TTFT {{gen_ai_request_model}}" },
+          { "expr": "histogram_quantile(0.90, sum by (le, gen_ai_request_model) (rate(gen_ai_server_time_to_first_token_seconds_bucket{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P90 TTFT {{gen_ai_request_model}}" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+  
+      { "id": 104, "type": "row", "title": "Cost & Tokens", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 15, "type": "timeseries", "title": "Input vs Output Tokens Over Time",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [
+          { "expr": "sum(increase(gen_ai_usage_input_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[1h]))", "legendFormat": "Input Tokens" },
+          { "expr": "sum(increase(gen_ai_usage_output_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[1h]))", "legendFormat": "Output Tokens" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input Tokens" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output Tokens" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 16, "type": "table", "title": "Estimated Cost by Model",
+        "description": "Requires a cost-per-token recording rule or static multiplier; placeholder expression shown",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum by (gen_ai_request_model) (gen_ai_usage_input_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}) * 0.000003 + sum by (gen_ai_request_model) (gen_ai_usage_output_tokens_total{gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}) * 0.000015", "legendFormat": "{{gen_ai_request_model}}", "format": "table" }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
+        "options": { "showHeader": true }
+      },
+  
+      { "id": 105, "type": "row", "title": "Errors", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 17, "type": "timeseries", "title": "Error Count Over Time by Type",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VM}" },
+        "targets": [{ "expr": "sum by (error_type) (increase(gen_ai_client_operation_duration_seconds_count{error_type!=\"\", gen_ai_request_model=~\"$model\", service_name=~\"$service_name\"}[1h]))", "legendFormat": "{{error_type}}" }],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } }, "color": { "mode": "fixed", "fixedColor": "#E0524A" } }, "overrides": [] },
+        "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 18, "type": "logs", "title": "Copilot Error Logs (Loki)",
+        "description": "Live tail of error-level Copilot chat/agent log events",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI_VAR}" },
+        "targets": [{ "expr": "{service_name=~\"$service_name\"} |= \"error\" | json", "legendFormat": "" }],
+        "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true }
+      },
+  
+      { "id": 106, "type": "row", "title": "Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 19, "type": "logs", "title": "All Copilot Chat Events (Loki)",
+        "description": "Full event stream emitted as OTel logs by Copilot Chat \u2014 user_prompt, tool_result, api_request, etc.",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 49 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI_VAR}" },
+        "targets": [{ "expr": "{service_name=~\"$service_name\"} | json", "legendFormat": "" }],
+        "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true, "dedupStrategy": "none" }
+      },
+  
+      { "id": 107, "type": "row", "title": "Trace Drill-Down", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 }, "collapsed": false, "panels": [] },
+  
+      {
+        "id": 20, "type": "table", "title": "Recent Copilot Traces (search & drill into Tempo)",
+        "description": "Click a trace to drill down into individual spans \u2014 chat, execute_tool, invoke_agent",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 59 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO_VAR}" },
+        "targets": [
+          {
+            "queryType": "traceqlSearch",
+            "filters": [
+              { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" },
+              { "id": "model", "tag": "gen_ai.request.model", "operator": "=~", "value": ["$model"], "valueType": "string" }
+            ],
+            "limit": 200,
+            "tableType": "traces"
+          }
+        ],
+        "options": {}
+      },
+  
+      {
+        "id": 21, "type": "traces", "title": "Selected Trace Detail",
+        "description": "Drill-down view \u2014 select a trace ID from the table above (link via dashboard variable or panel link) to inspect spans, gen_ai.* attributes, and latency breakdown",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 68 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO_VAR}" },
+        "targets": [{ "query": "${__data.fields[\"traceID\"]}", "queryType": "traceql" }],
+        "options": {}
+      }
+    ],
+  
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI_VAR}" },
+          "enable": true,
+          "iconColor": "#F0954A",
+          "expr": "{service_name=~\"$service_name\"} |= \"deployment\""
+        }
+      ]
+    },
+  
+    "links": []
+  }

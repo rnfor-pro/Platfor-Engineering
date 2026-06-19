@@ -1,0 +1,106 @@
+# KQL → PromQL / LogQL / TraceQL Migration Reference
+
+Companion reference for `copilot-otel-dashboard.json`. Maps every panel back to the original Azure Monitor / Application Insights KQL query it replaces, plus the query language and naming conventions you need to know when adapting or troubleshooting panels.
+
+---
+
+## Naming convention translation
+
+Application Insights stores OTel attributes as flattened `customDimensions` keys with dots intact (e.g. `customDimensions["gen_ai.request.model"]`). Prometheus/VictoriaMetrics cannot use dots in label or metric names, so the OTel Collector's `prometheusremotewrite` / native OTLP exporters convert them automatically:
+
+| OTel attribute (dots) | Prometheus label/metric (underscores) |
+|---|---|
+| `gen_ai.request.model` | `gen_ai_request_model` |
+| `gen_ai.usage.input_tokens` | `gen_ai_usage_input_tokens` (as a metric name, becomes `gen_ai_usage_input_tokens_total`) |
+| `gen_ai.operation.name` | `gen_ai_operation_name` |
+| `service.name` | `service_name` |
+| `error.type` | `error_type` |
+
+Loki and Tempo preserve dotted attribute names natively (as log labels / span attributes respectively), so no translation is needed for those two.
+
+---
+
+## Panel-by-panel reference
+
+### Agent Summary Statistics
+
+| Panel | Original KQL (App Insights) | New query (this dashboard) |
+|---|---|---|
+| Total Operations | `customMetrics \| where name == "gen_ai.client.operation.duration" \| summarize count()` | `sum(increase(gen_ai_client_operation_duration_seconds_count[$__range]))` |
+| Total Input Tokens | `customMetrics \| where name == "gen_ai.usage.input_tokens" \| summarize sum(value)` | `sum(increase(gen_ai_usage_input_tokens_total[$__range]))` |
+| Total Output Tokens | `customMetrics \| where name == "gen_ai.usage.output_tokens" \| summarize sum(value)` | `sum(increase(gen_ai_usage_output_tokens_total[$__range]))` |
+| Avg Response Time | `dependencies \| where name == "gen_ai.chat" \| summarize avg(duration)` | `avg(rate(gen_ai_client_operation_duration_seconds_sum[$__range]) / rate(gen_ai_client_operation_duration_seconds_count[$__range]))` |
+
+### Chat & Tool Summary
+
+| Panel | Original KQL | New query |
+|---|---|---|
+| LLM Calls | `dependencies \| where customDimensions["gen_ai.operation.name"] == "chat" \| count` | `sum(increase(gen_ai_client_operation_duration_seconds_count{gen_ai_operation_name="chat"}[$__range]))` |
+| Chat Sessions | `customEvents \| where name == "gen_ai.chat_session" \| summarize dcount(session_id)` | `sum(increase(gen_ai_chat_session_count_total[$__range]))` |
+| Tool Calls | `dependencies \| where customDimensions["gen_ai.operation.name"] == "execute_tool" \| count` | `sum(increase(gen_ai_tool_call_count_total[$__range]))` |
+| Avg TTFT | `customMetrics \| where name == "gen_ai.server.time_to_first_token" \| summarize avg(value)` | `avg(rate(gen_ai_server_time_to_first_token_seconds_sum[$__range]) / rate(gen_ai_server_time_to_first_token_seconds_count[$__range]))` |
+| Error Rate *(added)* | `dependencies \| summarize errorPct = 100.0 * countif(success == false) / count()` | `100 * sum(increase(gen_ai_client_operation_duration_seconds_count{error_type!=""}[$__range])) / sum(increase(gen_ai_client_operation_duration_seconds_count[$__range]))` |
+
+### Usage Over Time
+
+| Panel | Original KQL | New query |
+|---|---|---|
+| Operations Over Time | `dependencies \| summarize count() by bin(timestamp, 1d), tostring(customDimensions["gen_ai.operation.name"])` | `sum by (gen_ai_operation_name) (increase(gen_ai_client_operation_duration_seconds_count[1d]))` |
+| Token Consumption by Model | `customMetrics \| where name == "gen_ai.usage.*tokens" \| summarize sum(value) by bin(timestamp,1d), tostring(customDimensions["gen_ai.request.model"])` | `sum by (gen_ai_request_model) (increase(gen_ai_client_token_usage_sum[1d]))` |
+
+### Model Performance
+
+| Panel | Original KQL | New query |
+|---|---|---|
+| Model Usage Distribution | `dependencies \| summarize count() by tostring(customDimensions["gen_ai.request.model"])` | `sum by (gen_ai_request_model) (increase(gen_ai_client_operation_duration_seconds_count[$__range]))` |
+| Response Duration (Avg/P90) | `dependencies \| summarize avg(duration), percentile(duration,90) by tostring(customDimensions["gen_ai.request.model"])` | Avg: `avg by (gen_ai_request_model) (rate(...sum[..]) / rate(...count[..]))`<br>P90: `histogram_quantile(0.90, sum by (le, gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_bucket[$__range])))` |
+| TTFT (P50/P90) | `customMetrics \| where name == "gen_ai.server.time_to_first_token" \| summarize percentile(value,50), percentile(value,90) by model` | `histogram_quantile(0.50/0.90, sum by (le, gen_ai_request_model) (rate(gen_ai_server_time_to_first_token_seconds_bucket[$__range])))` |
+
+**Important: histogram_quantile requires a native histogram metric.** Confirm your OTel Collector is exporting `gen_ai_client_operation_duration_seconds` and `gen_ai_server_time_to_first_token_seconds` as Prometheus histograms (with `_bucket`, `_sum`, `_count` suffixes), not as a plain gauge/summary. If your Collector config only exports a `summary` type, swap `histogram_quantile(...)` for the metric's pre-computed quantile labels instead (e.g. `gen_ai_client_operation_duration_seconds{quantile="0.9"}`).
+
+### Cost & Tokens *(added — no KQL equivalent existed in the source dashboard)*
+
+Cost panels are new. App Insights had no native cost-per-token field; this is computed client-side in the PromQL expression using a placeholder rate. Update `0.000003` / `0.000015` in panel 16's query to your actual per-token contract pricing.
+
+### Errors *(added)*
+
+| Panel | Equivalent KQL concept | New query |
+|---|---|---|
+| Error Count by Type | `dependencies \| where success == false \| summarize count() by bin(timestamp,1h), resultCode` | `sum by (error_type) (increase(gen_ai_client_operation_duration_seconds_count{error_type!=""}[1h]))` |
+| Error Logs (Loki) | `traces \| where severityLevel >= 3` | `{service_name=~"$service_name"} \|= "error" \| json` |
+
+### Logs *(added — App Insights `traces` table equivalent)*
+
+| Panel | Original KQL | New query (LogQL) |
+|---|---|---|
+| All Copilot Chat Events | `traces \| where cloud_RoleName == "copilot-chat" \| order by timestamp desc` | `{service_name=~"$service_name"} \| json` |
+
+### Trace Drill-Down *(added — App Insights "dependency" drill-down equivalent)*
+
+| Panel | Original KQL/UI action | New query (TraceQL) |
+|---|---|---|
+| Recent Traces table | App Insights "End-to-end transaction details" view, found via `dependencies \| where cloud_RoleName == "copilot-chat"` then clicking a row | TraceQL search: `{ service.name =~ "$service_name" && gen_ai.request.model =~ "$model" }` |
+| Trace Detail | Same — clicking into a dependency opens the transaction map | Tempo trace view, loaded via `traceID` selected from the table above |
+
+---
+
+## Quick syntax cheat sheet
+
+| Concept | KQL | PromQL | LogQL | TraceQL |
+|---|---|---|---|---|
+| Filter by label/field | `where x == "y"` | `{label="y"}` | `{label="y"}` | `{ span.attr = "y" }` |
+| Regex filter | `where x matches regex "y.*"` | `{label=~"y.*"}` | `{label=~"y.*"}` | `{ span.attr =~ "y.*" }` |
+| Sum/aggregate | `summarize sum(value)` | `sum(metric)` | `sum(count_over_time({...}[5m]))` | n/a (use metrics-generator) |
+| Group by | `summarize ... by field` | `sum by (label) (metric)` | `sum by (label) (...)` | n/a |
+| Percentile | `percentile(value, 90)` | `histogram_quantile(0.90, ...)` | `quantile_over_time(0.90, ...)` | n/a |
+| Time bucket | `bin(timestamp, 1h)` | `[1h]` range vector | `[1h]` range vector | n/a |
+| Text search | `where message contains "x"` | n/a (metrics don't have free text) | `\|= "x"` | n/a |
+
+---
+
+## Things to verify before trusting these queries in production
+
+1. **Metric type mismatch** — if your Collector exports gauges instead of counters/histograms for any `gen_ai.*` metric, swap `increase()`/`rate()` for direct value reads, and `histogram_quantile()` won't work at all.
+2. **Label cardinality** — if `gen_ai.request.model` or similar attributes were accidentally left as high-cardinality (e.g. including a request ID), Prometheus/VictoriaMetrics will struggle. Check cardinality with `count(count by (gen_ai_request_model) (gen_ai_client_operation_duration_seconds_count))` — should be a small, stable number (one per model), not thousands.
+3. **Counter resets** — `increase()` handles counter resets (e.g. service restarts) automatically, but only within the queried range; very short ranges right after a restart can under-report.
+4. **Loki label vs. parsed field** — `service_name` works as a **label** filter (`{service_name=~"..."}`) only if your Collector's Loki exporter promotes it to a label. If it's only inside the JSON log body, you'll need `| json | service_name=~"..."` instead — check your Loki exporter's `labels` config.
