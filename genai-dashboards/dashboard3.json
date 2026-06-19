@@ -1,0 +1,1288 @@
+{
+    "__inputs": [
+      {
+        "name": "DS_VICTORIAMETRICS",
+        "label": "VictoriaMetrics",
+        "description": "Prometheus-compatible datasource for gen_ai.* metrics",
+        "type": "datasource",
+        "pluginId": "prometheus"
+      },
+      {
+        "name": "DS_TEMPO",
+        "label": "Tempo",
+        "description": "Trace storage for gen_ai.* spans",
+        "type": "datasource",
+        "pluginId": "tempo"
+      },
+      {
+        "name": "DS_LOKI",
+        "label": "Loki",
+        "description": "Log storage for Copilot chat events",
+        "type": "datasource",
+        "pluginId": "loki"
+      }
+    ],
+    "__requires": [
+      {
+        "type": "grafana",
+        "id": "grafana",
+        "name": "Grafana",
+        "version": "11.0.0"
+      },
+      {
+        "type": "datasource",
+        "id": "prometheus",
+        "name": "Prometheus",
+        "version": "1.0.0"
+      },
+      {
+        "type": "datasource",
+        "id": "tempo",
+        "name": "Tempo",
+        "version": "1.0.0"
+      },
+      {
+        "type": "datasource",
+        "id": "loki",
+        "name": "Loki",
+        "version": "1.0.0"
+      },
+      {
+        "type": "panel",
+        "id": "stat",
+        "name": "Stat",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "timeseries",
+        "name": "Time series",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "piechart",
+        "name": "Pie chart",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "barchart",
+        "name": "Bar chart",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "table",
+        "name": "Table",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "logs",
+        "name": "Logs",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "traces",
+        "name": "Traces",
+        "version": ""
+      }
+    ],
+    "id": null,
+    "uid": "copilot-otel-opensource",
+    "title": "GitHub Copilot \u2014 OTel (Open Source Stack)",
+    "description": "GitHub Copilot agent and chat telemetry via OpenTelemetry GenAI semantic conventions. Tracks token usage, latency, model adoption, tool calls, errors, and includes trace and log drill-down for debugging individual Copilot interactions. Backed by VictoriaMetrics (metrics), Tempo (traces), and Loki (logs) \u2014 no Azure Monitor / Application Insights dependency.",
+    "tags": [
+      "copilot",
+      "genai",
+      "opentelemetry",
+      "otel",
+      "victoriametrics",
+      "tempo",
+      "loki"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1m",
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        {
+          "name": "DS_VM",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "selected": false,
+            "text": "VictoriaMetrics",
+            "value": "${DS_VICTORIAMETRICS}"
+          },
+          "hide": 0,
+          "label": "Metrics datasource"
+        },
+        {
+          "name": "DS_TEMPO_VAR",
+          "type": "datasource",
+          "query": "tempo",
+          "current": {
+            "selected": false,
+            "text": "Tempo",
+            "value": "${DS_TEMPO}"
+          },
+          "hide": 0,
+          "label": "Traces datasource"
+        },
+        {
+          "name": "DS_LOKI_VAR",
+          "type": "datasource",
+          "query": "loki",
+          "current": {
+            "selected": false,
+            "text": "Loki",
+            "value": "${DS_LOKI}"
+          },
+          "hide": 0,
+          "label": "Logs datasource"
+        },
+        {
+          "name": "model",
+          "type": "query",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
+          "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, \"gen_ai.request.model\")",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          "label": "Model"
+        },
+        {
+          "name": "service_name",
+          "type": "query",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_VM}"
+          },
+          "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, service_name)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          "label": "Service"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 999,
+        "type": "text",
+        "title": "How to Use This Dashboard",
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "options": {
+          "mode": "markdown",
+          "content": "## How to use this dashboard\n\n**What this shows:** GitHub Copilot agent and chat telemetry, captured via OpenTelemetry GenAI semantic conventions, flowing through our open-source pipeline (VS Code &rarr; OTel Collector &rarr; RedPanda &rarr; OTel Router &rarr; VictoriaMetrics / Tempo / Loki) with **no Azure Monitor or Application Insights** in the path.\n\n### \u26a0\ufe0f Naming convention warning (read this first)\n\nOur pipeline does **not** follow standard Prometheus underscore naming. Confirmed from the live VictoriaMetrics and Loki browsers:\n\n| Backend | Convention | Example |\n|---|---|---|\n| **VictoriaMetrics** | Dots preserved in metric names | `gen_ai.client.token.usage_sum`, `copilot_chat.session.count` |\n| **VictoriaMetrics labels** | Mixed \u2014 some dotted, some underscore | `gen_ai.request.model` (dotted), `service_name` (underscore) |\n| **Loki fields** | Underscores throughout | `gen_ai_request_model`, `gen_ai_usage_input_tokens` |\n\nBecause metric names contain dots, PromQL queries in this dashboard use the `{__name__=\"gen_ai.client.token.usage_sum\"}` quoted form instead of bare `gen_ai_client_token_usage_sum` \u2014 the unquoted form will not match anything in our instance. If you add new panels, check the live Metrics Browser (VictoriaMetrics datasource &rarr; Metrics browser tab) for the exact name before writing the query.\n\n**Filters (top of dashboard):**\n- **Model** &mdash; filter by `gen_ai.request.model` (e.g. `claude-opus-4-6`, `gpt-4o-mini-2024-07-18`). Defaults to All.\n- **Service** &mdash; filter by `service_name`. Defaults to All.\n- Time picker (top right) controls all rate/increase windows.\n\n**Section guide:**\n| Section | What it tells you |\n|---|---|\n| Agent Summary Statistics | High-level volume: total operations, tokens in/out, average response time |\n| Chat & Tool Summary | LLM calls, chat sessions (`copilot_chat.session.count`), tool/agent turns, latency, error proxy |\n| Usage Over Time | Trend of operation volume and token consumption per model |\n| Model Performance | Model adoption mix and latency comparison (duration, time-to-first-token) |\n| Cost & Tokens | Input vs. output token trend and an **estimated** cost table &mdash; update the rate constants to your real contract pricing |\n| Errors | \u26a0\ufe0f Uses `gen_ai.response.finish_reasons` as a **proxy** \u2014 no confirmed dedicated error/success field exists yet. Verify before trusting. |\n| Logs | Raw Loki event stream, searchable by any field shown in the Loki field list (left panel when browsing Loki directly) |\n| Trace Drill-Down | Search recent traces and inspect individual spans for a specific interaction |\n\n**Two panels are flagged PROXY METRIC in their description** (Tool Calls, Error Rate / Error Count) because no dedicated metric for these was confirmed in the live label browser at build time. Check the Metrics Browser yourself and replace these queries if better metrics exist.\n\n**Drilling into a single interaction:**\n1. Go to **Trace Drill-Down**.\n2. Filter the table by time, model, or service.\n3. Click a trace row to load it in the detail panel below \u2014 every span with its `gen_ai.*` attributes and timing.\n\n**If a panel shows \"No data\":**\n1. Open the VictoriaMetrics **Metrics browser** tab directly and confirm the metric name still matches exactly (dots vs. underscores, exact suffix `_sum`/`_count`/`_bucket`).\n2. Confirm the Model/Service filters aren't excluding everything \u2014 try setting both to \"All\".\n3. Confirm VS Code clients have `github.copilot.chat.otel.enabled` and `otlpEndpoint` set, and have been restarted.\n4. For Loki panels, confirm `service_name` is promoted to a **label** (not just a JSON field) in your Loki exporter config \u2014 otherwise `{service_name=~\"...\"}` won't match and you need `| json | service_name=~\"...\"` instead.\n\n*Each panel below also has its own description \u2014 hover the (i) icon in the panel header.*\n"
+        },
+        "transparent": false
+      },
+      {
+        "id": 100,
+        "type": "row",
+        "title": "Agent Summary Statistics",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 9
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Total Operations",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Total Operations"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#3B82E6"
+            },
+            "decimals": 0,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Total count of all Copilot operations (chat, tool calls, agent invocations) in the selected time range. Source: gen_ai.client.operation.duration count, summed across all operation types."
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Total Input Tokens",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Total Input Tokens"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#9C5FE0"
+            },
+            "decimals": 1,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Total prompt/input tokens sent to all models in the selected range. Source: gen_ai.usage.input_tokens. Drives most of your token cost \u2014 watch for spikes from large context windows."
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Total Output Tokens",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Total Output Tokens"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#5BA85B"
+            },
+            "decimals": 0,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Total completion/output tokens generated by all models in the selected range. Source: gen_ai.usage.output_tokens. Typically priced higher per-token than input."
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Avg Response Time",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 10
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(rate({__name__=\"gen_ai.client.operation.duration_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range])) / sum(rate({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Avg Response Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#F0954A"
+            },
+            "decimals": 2,
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Average end-to-end response time across all operations and models. Source: gen_ai.client.operation.duration. A rising trend here often means model overload or network latency upstream."
+      },
+      {
+        "id": 101,
+        "type": "row",
+        "title": "Chat & Tool Summary",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 14
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 5,
+        "type": "stat",
+        "title": "LLM Calls",
+        "gridPos": {
+          "h": 4,
+          "w": 5,
+          "x": 0,
+          "y": 15
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.operation.name\"=\"chat\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "LLM Calls"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#3B82E6"
+            },
+            "decimals": 2,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Count of LLM (chat completion) calls specifically \u2014 excludes tool calls and agent invocations. Source: gen_ai.client.operation.duration count filtered to operation.name = 'chat'."
+      },
+      {
+        "id": 6,
+        "type": "stat",
+        "title": "Chat Sessions",
+        "gridPos": {
+          "h": 4,
+          "w": 5,
+          "x": 5,
+          "y": 15
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"copilot_chat.session.count\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Chat Sessions"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#5BA85B"
+            },
+            "decimals": 0,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Number of distinct Copilot Chat sessions opened in the selected range. One session can contain many LLM calls and tool calls."
+      },
+      {
+        "id": 7,
+        "type": "stat",
+        "title": "Tool Calls",
+        "gridPos": {
+          "h": 4,
+          "w": 5,
+          "x": 10,
+          "y": 15
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"copilot_chat.agent.turn.count_count\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Tool Calls (agent turns)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#9C5FE0"
+            },
+            "decimals": 0,
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "PROXY METRIC \u2014 no dedicated 'tool call count' metric was confirmed in the live VictoriaMetrics browser. This uses copilot_chat.agent.turn.count as the closest available signal. Verify against your actual metric list (Metrics browser \u2192 search 'copilot_chat' and 'gen_ai') and replace with the correct metric if a more specific one exists (e.g. an execute_tool-scoped counter)."
+      },
+      {
+        "id": 8,
+        "type": "stat",
+        "title": "Avg TTFT",
+        "gridPos": {
+          "h": 4,
+          "w": 4,
+          "x": 15,
+          "y": 15
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(rate({__name__=\"copilot_chat.time_to_first_token_sum\", service_name=~\"$service_name\"}[$__range])) / sum(rate({__name__=\"copilot_chat.time_to_first_token_count\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Avg TTFT"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#F0954A"
+            },
+            "decimals": 2,
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "Average Time To First Token \u2014 how long a user waits before seeing the first streamed response token. This is the latency users actually feel; track separately from total duration."
+      },
+      {
+        "id": 9,
+        "type": "stat",
+        "title": "Error Rate",
+        "gridPos": {
+          "h": 4,
+          "w": 5,
+          "x": 19,
+          "y": 15
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "100 * sum(increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.response.finish_reasons\"=~\".*error.*\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range])) / sum(increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "decimals": 1,
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "#5BA85B",
+                  "value": null
+                },
+                {
+                  "color": "#F0954A",
+                  "value": 2
+                },
+                {
+                  "color": "#E0524A",
+                  "value": 5
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "value_and_name"
+        },
+        "description": "PROXY METRIC \u2014 no confirmed error_type or success/failure label was found in the live label browser. This approximates errors via gen_ai.response.finish_reasons matching '.*error.*', which may not catch all failure modes (rate limits, timeouts, auth failures may report differently or not at all in this field). Verify the actual finish_reasons values your pipeline emits before trusting this number."
+      },
+      {
+        "id": 102,
+        "type": "row",
+        "title": "Usage Over Time",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 19
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 10,
+        "type": "barchart",
+        "title": "Operations Over Time",
+        "description": "Count of chat, execute_tool, and invoke_agent operations, stacked by type",
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 0,
+          "y": 20
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"gen_ai.operation.name\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1d]))",
+            "legendFormat": "{{gen_ai.operation.name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Count chat"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#5BA85B"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Count execute_tool"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#E8C547"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Count invoke_agent"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#5B8FE0"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": [
+              "sum"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "type": "barchart",
+        "title": "Token Consumption Over Time by Model",
+        "description": "Total tokens (input + output) consumed per model over time",
+        "gridPos": {
+          "h": 9,
+          "w": 12,
+          "x": 12,
+          "y": 20
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"gen_ai.request.model\") (increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1d]))",
+            "legendFormat": "{{gen_ai.request.model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": [
+              "sum"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        }
+      },
+      {
+        "id": 103,
+        "type": "row",
+        "title": "Model Performance",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 29
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 12,
+        "type": "piechart",
+        "title": "Model Usage Distribution",
+        "gridPos": {
+          "h": 9,
+          "w": 8,
+          "x": 0,
+          "y": 30
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"gen_ai.request.model\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "{{gen_ai.request.model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "options": {
+          "pieType": "donut",
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": [
+              "value",
+              "percent"
+            ]
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "description": "Share of total operations by model \u2014 shows adoption distribution across the models available to your org (e.g. Claude, GPT, Copilot's own models)."
+      },
+      {
+        "id": 13,
+        "type": "barchart",
+        "title": "Response Duration by Model (Avg / P90)",
+        "gridPos": {
+          "h": 9,
+          "w": 8,
+          "x": 8,
+          "y": 30
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "avg by (\"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.duration_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]) / rate({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))",
+            "legendFormat": "Avg {{gen_ai.request.model}}"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.duration_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range])))",
+            "legendFormat": "P90 {{gen_ai.request.model}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "options": {
+          "orientation": "horizontal",
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "description": "Average and P90 response duration per model. Use this to compare model speed when deciding which to recommend as default for latency-sensitive workflows."
+      },
+      {
+        "id": 14,
+        "type": "barchart",
+        "title": "Time to First Token by Model (P50 / P90)",
+        "gridPos": {
+          "h": 9,
+          "w": 8,
+          "x": 16,
+          "y": 30
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum by (le) (rate({__name__=\"copilot_chat.time_to_first_token_bucket\", service_name=~\"$service_name\"}[$__range])))",
+            "legendFormat": "P50 TTFT"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum by (le) (rate({__name__=\"copilot_chat.time_to_first_token_bucket\", service_name=~\"$service_name\"}[$__range])))",
+            "legendFormat": "P90 TTFT"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "options": {
+          "orientation": "horizontal",
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "description": "P50 and P90 time-to-first-token per model \u2014 the perceived 'snappiness' of each model. A model can have a fast average duration but a slow TTFT if it front-loads reasoning before streaming."
+      },
+      {
+        "id": 104,
+        "type": "row",
+        "title": "Cost & Tokens",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 39
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 15,
+        "type": "timeseries",
+        "title": "Input vs Output Tokens Over Time",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 40
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1h]))",
+            "legendFormat": "Input Tokens"
+          },
+          {
+            "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1h]))",
+            "legendFormat": "Output Tokens"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "fillOpacity": 15,
+              "lineWidth": 2
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Input Tokens"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#9C5FE0"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Output Tokens"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#5BA85B"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "description": "Hourly trend of input vs. output token volume. A widening gap between input and output often signals growing context size (large files, long chat history) rather than longer answers."
+      },
+      {
+        "id": 16,
+        "type": "table",
+        "title": "Estimated Cost by Model",
+        "description": "Requires a cost-per-token recording rule or static multiplier; placeholder expression shown",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 40
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"gen_ai.request.model\") ({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}) * 0.000003 + sum by (\"gen_ai.request.model\") ({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}) * 0.000015",
+            "legendFormat": "{{gen_ai.request.model}}",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          },
+          "overrides": []
+        },
+        "options": {
+          "showHeader": true
+        }
+      },
+      {
+        "id": 105,
+        "type": "row",
+        "title": "Errors",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 48
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 17,
+        "type": "timeseries",
+        "title": "Error Count Over Time by Type",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 49
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VM}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"gen_ai.response.finish_reasons\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.response.finish_reasons\"=~\".*error.*\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1h]))",
+            "legendFormat": "{{gen_ai.response.finish_reasons}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "fillOpacity": 20,
+              "lineWidth": 2,
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "#E0524A"
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "bottom",
+            "calcs": [
+              "sum"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
+        "description": "PROXY METRIC \u2014 same caveat as the Error Rate stat panel above. Verify finish_reasons values in your data before trusting this breakdown."
+      },
+      {
+        "id": 18,
+        "type": "logs",
+        "title": "Copilot Error Logs (Loki)",
+        "description": "Live tail of error-level Copilot chat/agent log events",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 49
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "${DS_LOKI_VAR}"
+        },
+        "targets": [
+          {
+            "expr": "{service_name=~\"$service_name\"} |= \"error\"",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "wrapLogMessage": true,
+          "sortOrder": "Descending",
+          "enableLogDetails": true
+        }
+      },
+      {
+        "id": 106,
+        "type": "row",
+        "title": "Logs",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 57
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 19,
+        "type": "logs",
+        "title": "All Copilot Chat Events (Loki)",
+        "description": "Full event stream emitted as OTel logs by Copilot Chat \u2014 user_prompt, tool_result, api_request, etc.",
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 58
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "${DS_LOKI_VAR}"
+        },
+        "targets": [
+          {
+            "expr": "{service_name=~\"$service_name\"}",
+            "legendFormat": ""
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "wrapLogMessage": false,
+          "sortOrder": "Descending",
+          "enableLogDetails": true,
+          "dedupStrategy": "none"
+        }
+      },
+      {
+        "id": 107,
+        "type": "row",
+        "title": "Trace Drill-Down",
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 67
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 20,
+        "type": "table",
+        "title": "Recent Copilot Traces (search & drill into Tempo)",
+        "description": "Searchable table of recent traces filtered by Model/Service. Span attribute names here assume Tempo preserves the same dotted gen_ai.* convention seen in VictoriaMetrics \u2014 verify against an actual span in Tempo's search UI before relying on this filter.",
+        "gridPos": {
+          "h": 9,
+          "w": 24,
+          "x": 0,
+          "y": 68
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${DS_TEMPO_VAR}"
+        },
+        "targets": [
+          {
+            "queryType": "traceqlSearch",
+            "filters": [
+              {
+                "id": "service-name",
+                "tag": "service.name",
+                "operator": "=~",
+                "value": [
+                  "$service_name"
+                ],
+                "valueType": "string"
+              },
+              {
+                "id": "model",
+                "tag": "gen_ai.request.model",
+                "operator": "=~",
+                "value": [
+                  "$model"
+                ],
+                "valueType": "string"
+              }
+            ],
+            "limit": 200,
+            "tableType": "traces"
+          }
+        ],
+        "options": {}
+      },
+      {
+        "id": 21,
+        "type": "traces",
+        "title": "Selected Trace Detail",
+        "description": "Drill-down view \u2014 select a trace ID from the table above (link via dashboard variable or panel link) to inspect spans, gen_ai.* attributes, and latency breakdown",
+        "gridPos": {
+          "h": 10,
+          "w": 24,
+          "x": 0,
+          "y": 77
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${DS_TEMPO_VAR}"
+        },
+        "targets": [
+          {
+            "query": "${__data.fields[\"traceID\"]}",
+            "queryType": "traceql"
+          }
+        ],
+        "options": {}
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI_VAR}"
+          },
+          "enable": true,
+          "iconColor": "#F0954A",
+          "expr": "{service_name=~\"$service_name\"} |= \"deployment\""
+        }
+      ]
+    },
+    "links": []
+  }
