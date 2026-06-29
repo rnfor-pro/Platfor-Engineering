@@ -1,0 +1,1202 @@
+{
+    "title": "GitHub Copilot AI Adoption Cohort \u2014 User Attribution & Token Budget",
+    "uid": "copilot-cohort-user-attribution",
+    "tags": [
+      "copilot",
+      "cohorts",
+      "ai-adoption",
+      "token-budget",
+      "per-user"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "style": "dark",
+    "editable": true,
+    "time": {
+      "from": "now-60d",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "current": {},
+          "hide": 0,
+          "includeAll": false,
+          "label": "Data source",
+          "multi": false,
+          "name": "datasource",
+          "options": [],
+          "query": "prometheus",
+          "queryValue": "",
+          "refresh": 1,
+          "regex": "",
+          "type": "datasource"
+        },
+        {
+          "current": {
+            "text": "sherwin-williams",
+            "value": "sherwin-williams"
+          },
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          },
+          "definition": "label_values(github_copilot_user_ai_adoption_phase, enterprise)",
+          "hide": 0,
+          "includeAll": false,
+          "label": "Enterprise",
+          "multi": false,
+          "name": "enterprise",
+          "query": {
+            "query": "label_values(github_copilot_user_ai_adoption_phase, enterprise)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 2,
+          "regex": "",
+          "type": "query"
+        },
+        {
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": {
+            "type": "${datasource}",
+            "uid": "${datasource}"
+          },
+          "definition": "label_values(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\"}, ai_adoption_phase)",
+          "hide": 0,
+          "includeAll": true,
+          "allValue": ".*",
+          "label": "AI Adoption Phase",
+          "multi": true,
+          "name": "phase",
+          "query": {
+            "query": "label_values(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\"}, ai_adoption_phase)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 2,
+          "regex": "",
+          "type": "query"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 800,
+        "title": "How to read this dashboard",
+        "type": "text",
+        "gridPos": {
+          "h": 5,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [],
+        "options": {
+          "mode": "markdown",
+          "content": "## AI Adoption Cohort \u2192 User Attribution & Token Budget\n\nGitHub classifies every active Copilot user into an **AI Adoption Phase** daily, based on which Copilot surfaces they used in the preceding 28-day window.\n\n| Phase | Name | Criteria | Suggested Monthly Token Budget |\n|:---:|---|---|---|\n| 0 | No Cohort | Did not meet engagement criteria for any phase | 50,000 |\n| 1 | Code First | Used code completion and/or IDE agent mode | 150,000 |\n| 2 | Agent First | Used one GitHub-based agent surface (cloud agent / code review / CLI) | 400,000 |\n| 3 | Multi-Agent | Used two or more GitHub-based agent surfaces | 1,000,000 |\n\n**Source metric:** `github_copilot_user_ai_adoption_phase{user_login, user_id, ai_adoption_phase}` written daily per user. Use the **Phase** filter above to focus on a specific cohort. Token budget multipliers in the bottom table can be changed directly in the panel query."
+        }
+      },
+      {
+        "id": 801,
+        "title": "Phase 0 \u2014 No Cohort",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 5
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "description": "Number of distinct users currently assigned to Phase 0 \u2014 No Cohort.",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "fixedColor": "gray",
+              "mode": "fixed"
+            },
+            "unit": "none",
+            "decimals": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "gray",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "expr": "count(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=\"phase_0\"}[1d]))",
+            "instant": true,
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ]
+      },
+      {
+        "id": 802,
+        "title": "Phase 1 \u2014 Code First",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 5
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "description": "Number of distinct users currently assigned to Phase 1 \u2014 Code First.",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "fixedColor": "cornflowerblue",
+              "mode": "fixed"
+            },
+            "unit": "none",
+            "decimals": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "cornflowerblue",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "expr": "count(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=\"phase_1\"}[1d]))",
+            "instant": true,
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ]
+      },
+      {
+        "id": 803,
+        "title": "Phase 2 \u2014 Agent First",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 5
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "description": "Number of distinct users currently assigned to Phase 2 \u2014 Agent First.",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "fixedColor": "mediumseagreen",
+              "mode": "fixed"
+            },
+            "unit": "none",
+            "decimals": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "mediumseagreen",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "expr": "count(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=\"phase_2\"}[1d]))",
+            "instant": true,
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ]
+      },
+      {
+        "id": 804,
+        "title": "Phase 3 \u2014 Multi-Agent",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 5
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "description": "Number of distinct users currently assigned to Phase 3 \u2014 Multi-Agent.",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "fixedColor": "mediumpurple",
+              "mode": "fixed"
+            },
+            "unit": "none",
+            "decimals": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "mediumpurple",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "expr": "count(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=\"phase_3\"}[1d]))",
+            "instant": true,
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ]
+      },
+      {
+        "id": 805,
+        "title": "AI Adoption Phase Distribution \u2014 Daily",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 14,
+          "x": 0,
+          "y": 9
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (ai_adoption_phase) (github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\"})",
+            "legendFormat": "{{ai_adoption_phase}}",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Stacked bars show daily user count per phase. Growing Phase 2/3 bars indicate successful AI adoption progression.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "barAlignment": 0,
+              "lineWidth": 1,
+              "fillOpacity": 70,
+              "stacking": {
+                "mode": "normal",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_0"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "gray",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_1"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "cornflowerblue",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_2"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumseagreen",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_3"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumpurple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "unknown"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "orange",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 806,
+        "title": "Phase Graduation Trend (1\u21922\u21923)",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 10,
+          "x": 14,
+          "y": 9
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "sum by (ai_adoption_phase) (github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"(phase_1|phase_2|phase_3)\"})",
+            "legendFormat": "{{ai_adoption_phase}}",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Line trend of Phase 1/2/3 only. Phase 1 shrinking while Phase 2/3 grow is the target pattern for a maturing Copilot programme.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_0"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "gray",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_1"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "cornflowerblue",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_2"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumseagreen",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_3"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumpurple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "unknown"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "orange",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "last",
+              "max"
+            ]
+          }
+        }
+      },
+      {
+        "id": 807,
+        "title": "Avg Prompts per User per Day \u2014 by Phase",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 17
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "github_copilot_ai_adoption_phase_prompts_per_user_avg{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\"}",
+            "legendFormat": "{{ai_adoption_phase}}",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Primary input for the token budget table. Phase 3 users consistently drive more prompts per day \u2014 justifying a higher token allocation.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_0"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "gray",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_1"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "cornflowerblue",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_2"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumseagreen",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_3"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumpurple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "unknown"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "orange",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "max"
+            ]
+          }
+        }
+      },
+      {
+        "id": 808,
+        "title": "Code Acceptance Rate \u2014 by Phase",
+        "type": "timeseries",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 17
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "github_copilot_ai_adoption_phase_acceptance_rate{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\"}",
+            "legendFormat": "{{ai_adoption_phase}}",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Higher acceptance rate = more suggestions converted to accepted code. Phase 2/3 users typically show higher rates, supporting higher token budgets for them.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "percentunit",
+            "decimals": 1
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_0"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "gray",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_1"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "cornflowerblue",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_2"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumseagreen",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "phase_3"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "mediumpurple",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "bySeriesName",
+                "options": "unknown"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "orange",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "mean",
+              "max"
+            ]
+          }
+        }
+      },
+      {
+        "id": 809,
+        "title": "Users by AI Adoption Phase \u2014 Current Assignment",
+        "type": "table",
+        "gridPos": {
+          "h": 14,
+          "w": 12,
+          "x": 0,
+          "y": 25
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\"}[1d])",
+            "instant": true,
+            "format": "table",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Every active user's latest phase assignment. Filter by Phase variable above to see just the users you want. Sorted by phase so you can quickly scan all Phase 3 users or identify Phase 0 users who need enablement attention.",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_login"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 200
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_id"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 120
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "ai_adoption_phase"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 170
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "phase_0": {
+                          "text": "\ud83d\udd18 No Cohort",
+                          "color": "gray",
+                          "index": 0
+                        },
+                        "phase_1": {
+                          "text": "\ud83d\udd35 Code First",
+                          "color": "blue",
+                          "index": 1
+                        },
+                        "phase_2": {
+                          "text": "\ud83d\udfe2 Agent First",
+                          "color": "green",
+                          "index": 2
+                        },
+                        "phase_3": {
+                          "text": "\ud83d\udfe3 Multi-Agent",
+                          "color": "purple",
+                          "index": 3
+                        },
+                        "unknown": {
+                          "text": "\ud83d\udfe0 Unknown",
+                          "color": "orange",
+                          "index": 4
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Active Today"
+                },
+                {
+                  "id": "custom.width",
+                  "value": 110
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "ai_adoption_phase",
+              "desc": false
+            }
+          ]
+        }
+      },
+      {
+        "id": 810,
+        "title": "Top 20 Users by Prompt Activity (selected range)",
+        "type": "table",
+        "gridPos": {
+          "h": 14,
+          "w": 12,
+          "x": 12,
+          "y": 25
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "topk(20, sum by (user_login) (sum_over_time(github_copilot_user_prompt_count{enterprise=\"$enterprise\"}[$__range])))",
+            "instant": true,
+            "format": "table",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Top users by raw prompt volume in the dashboard time range. Cross-reference with the phase table on the left to see whether your heaviest users are already in Phase 2/3 (getting the right token budget) or still in Phase 1/0 (potential candidates for enablement to unlock agent surfaces).",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_login"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 200
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Total Prompts"
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "lcd-gauge"
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "continuous-BlPu"
+                  }
+                },
+                {
+                  "id": "custom.width",
+                  "value": 200
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Total Prompts",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 811,
+        "title": "Token Budget Recommendation by User \u2014 Estimated Monthly",
+        "type": "table",
+        "gridPos": {
+          "h": 14,
+          "w": 24,
+          "x": 0,
+          "y": 39
+        },
+        "datasource": {
+          "type": "${datasource}",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "expr": "(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_0\"}[1d]) * 50000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_1\"}[1d]) * 150000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_2\"}[1d]) * 400000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_3\"}[1d]) * 1000000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"unknown\"}[1d]) * 50000)",
+            "instant": true,
+            "format": "table",
+            "refId": "A",
+            "datasource": {
+              "type": "${datasource}",
+              "uid": "${datasource}"
+            }
+          }
+        ],
+        "description": "Recommended monthly token allocation per user based on their current AI Adoption Phase.\n\nBudget multipliers (edit the panel query to adjust):\n  Phase 0 \u2014 No Cohort:   50,000 tokens/month\n  Phase 1 \u2014 Code First:  150,000 tokens/month\n  Phase 2 \u2014 Agent First: 400,000 tokens/month\n  Phase 3 \u2014 Multi-Agent: 1,000,000 tokens/month\n\nSorted highest-budget first. Use the Phase filter to export just one cohort at a time.",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "decimals": 0
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_login"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 200
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "user_id"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 120
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "ai_adoption_phase"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 170
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "phase_0": {
+                          "text": "\ud83d\udd18 No Cohort",
+                          "color": "gray",
+                          "index": 0
+                        },
+                        "phase_1": {
+                          "text": "\ud83d\udd35 Code First",
+                          "color": "blue",
+                          "index": 1
+                        },
+                        "phase_2": {
+                          "text": "\ud83d\udfe2 Agent First",
+                          "color": "green",
+                          "index": 2
+                        },
+                        "phase_3": {
+                          "text": "\ud83d\udfe3 Multi-Agent",
+                          "color": "purple",
+                          "index": 3
+                        },
+                        "unknown": {
+                          "text": "\ud83d\udfe0 Unknown",
+                          "color": "orange",
+                          "index": 4
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Value"
+              },
+              "properties": [
+                {
+                  "id": "displayName",
+                  "value": "Est. Monthly Token Budget"
+                },
+                {
+                  "id": "unit",
+                  "value": "none"
+                },
+                {
+                  "id": "decimals",
+                  "value": 0
+                },
+                {
+                  "id": "custom.width",
+                  "value": 230
+                },
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "thresholds"
+                  }
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "gray",
+                        "value": null
+                      },
+                      {
+                        "color": "blue",
+                        "value": 150000
+                      },
+                      {
+                        "color": "green",
+                        "value": 400000
+                      },
+                      {
+                        "color": "purple",
+                        "value": 1000000
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Est. Monthly Token Budget",
+              "desc": true
+            }
+          ]
+        }
+      }
+    ]
+  }
