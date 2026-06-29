@@ -94,7 +94,7 @@
           "y": 0
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [],
@@ -114,7 +114,7 @@
           "y": 5
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "description": "Number of distinct users currently assigned to Phase 0 \u2014 No Cohort.",
@@ -143,11 +143,21 @@
             "instant": true,
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
-        ]
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        }
       },
       {
         "id": 802,
@@ -160,7 +170,7 @@
           "y": 5
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "description": "Number of distinct users currently assigned to Phase 1 \u2014 Code First.",
@@ -189,11 +199,21 @@
             "instant": true,
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
-        ]
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        }
       },
       {
         "id": 803,
@@ -206,7 +226,7 @@
           "y": 5
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "description": "Number of distinct users currently assigned to Phase 2 \u2014 Agent First.",
@@ -235,11 +255,21 @@
             "instant": true,
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
-        ]
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        }
       },
       {
         "id": 804,
@@ -252,7 +282,7 @@
           "y": 5
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "description": "Number of distinct users currently assigned to Phase 3 \u2014 Multi-Agent.",
@@ -281,11 +311,21 @@
             "instant": true,
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
-        ]
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "background"
+        }
       },
       {
         "id": 805,
@@ -298,7 +338,7 @@
           "y": 9
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -307,7 +347,7 @@
             "legendFormat": "{{ai_adoption_phase}}",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -430,7 +470,7 @@
           "y": 9
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -439,7 +479,7 @@
             "legendFormat": "{{ai_adoption_phase}}",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -561,7 +601,7 @@
           "y": 17
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -570,7 +610,7 @@
             "legendFormat": "{{ai_adoption_phase}}",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -692,7 +732,7 @@
           "y": 17
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -701,7 +741,7 @@
             "legendFormat": "{{ai_adoption_phase}}",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -823,7 +863,7 @@
           "y": 25
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -833,7 +873,7 @@
             "format": "table",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -954,7 +994,7 @@
           "y": 25
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
@@ -964,7 +1004,7 @@
             "format": "table",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
             }
           }
@@ -1036,19 +1076,20 @@
           "y": 39
         },
         "datasource": {
-          "type": "${datasource}",
+          "type": "prometheus",
           "uid": "${datasource}"
         },
         "targets": [
           {
-            "expr": "(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_0\"}[1d]) * 50000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_1\"}[1d]) * 150000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_2\"}[1d]) * 400000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_3\"}[1d]) * 1000000)\nor\n(last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"unknown\"}[1d]) * 50000)",
+            "expr": "last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_0\"}[1d]) * 50000 or last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_1\"}[1d]) * 150000 or last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_2\"}[1d]) * 400000 or last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"phase_3\"}[1d]) * 1000000 or last_over_time(github_copilot_user_ai_adoption_phase{enterprise=\"$enterprise\",ai_adoption_phase=~\"$phase\",ai_adoption_phase=\"unknown\"}[1d]) * 50000",
             "instant": true,
             "format": "table",
             "refId": "A",
             "datasource": {
-              "type": "${datasource}",
+              "type": "prometheus",
               "uid": "${datasource}"
-            }
+            },
+            "legendFormat": ""
           }
         ],
         "description": "Recommended monthly token allocation per user based on their current AI Adoption Phase.\n\nBudget multipliers (edit the panel query to adjust):\n  Phase 0 \u2014 No Cohort:   50,000 tokens/month\n  Phase 1 \u2014 Code First:  150,000 tokens/month\n  Phase 2 \u2014 Agent First: 400,000 tokens/month\n  Phase 3 \u2014 Multi-Agent: 1,000,000 tokens/month\n\nSorted highest-budget first. Use the Phase filter to export just one cohort at a time.",
@@ -1197,6 +1238,16 @@
             }
           ]
         }
+      }
+    ],
+    "__inputs": [
+      {
+        "name": "DS_VICTORIAMETRICS",
+        "label": "VictoriaMetrics / Prometheus",
+        "description": "Select your Prometheus-compatible datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "pluginName": "Prometheus"
       }
     ]
   }
