@@ -1,0 +1,292 @@
+{
+    "__inputs": [
+      { "name": "DS_LOKI", "label": "Loki", "type": "datasource", "pluginId": "loki" },
+      { "name": "DS_VICTORIAMETRICS", "label": "VictoriaMetrics", "type": "datasource", "pluginId": "prometheus" }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+      { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+      { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" },
+      { "type": "panel", "id": "text", "name": "Text", "version": "" },
+      { "type": "panel", "id": "logs", "name": "Logs", "version": "" }
+    ],
+    "uid": "copilot-user-efficiency",
+    "title": "Copilot \u2014 My Token Usage & Efficiency",
+    "description": "Developer self-service dashboard. Select your username to see token usage per prompt, per day, per week, and per month — plus efficiency tips to get more out of each token budget.",
+    "tags": ["copilot", "tokens", "efficiency", "self-service", "user", "loki"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "5m",
+    "time": { "from": "now-30d", "to": "now" },
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        {
+          "name": "username",
+          "type": "query",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "query": "label_values(user_username)",
+          "refresh": 2,
+          "multi": false,
+          "includeAll": false,
+          "label": "\ud83d\udc64 My Username",
+          "description": "Select your username. Populated from OTEL_RESOURCE_ATTRIBUTES=user.username=<your-github-handle> set on your machine by IT."
+        },
+        {
+          "name": "model",
+          "type": "query",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "query": "label_values(gen_ai_request_model)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "label": "Model",
+          "current": { "text": "All", "value": "$__all" }
+        },
+        {
+          "name": "window",
+          "type": "custom",
+          "query": "Today : now/d,now : 1d,This Week : now/w,now : 7d,This Month : now/M,now : 30d",
+          "multi": false,
+          "includeAll": false,
+          "label": "Quick window",
+          "current": { "text": "This Month", "value": "30d" },
+          "hide": 2
+        }
+      ]
+    },
+    "panels": [
+  
+      {
+        "id": 999, "type": "text", "title": "\ud83d\udcca My Copilot Token Efficiency Dashboard",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+        "options": { "mode": "markdown", "content": "## \ud83d\udcca My Copilot Token Efficiency Dashboard\n\n**How to use this dashboard:**\n1. Select **your username** from the \"\ud83d\udc64 My Username\" dropdown at the top. This is your GitHub handle as configured on your machine.\n2. Use the **time picker** (top right) to switch between today, this week, or this month.\n3. Use the **Model** filter to compare usage across models.\n\n---\n\n### \ud83d\udca1 Token efficiency tips\n\n| Tip | Why it helps |\n|---|---|\n| **Be specific in your prompt** | Vague prompts trigger longer LLM back-and-forths, consuming more tokens per answer |\n| **Scope your context** | Open only the files relevant to your task before asking Copilot \u2014 fewer context tokens sent |\n| **Use smaller models for simple tasks** | GPT-4o-mini and similar are much cheaper per token for syntax fixes or short explanations |\n| **Prefer inline suggestions over chat for boilerplate** | Inline completions use far fewer tokens than a full chat round-trip |\n| **Check your longest sessions** | One runaway agent session can consume more tokens than a full day of chat |\n| **Watch output tokens** | Output tokens cost ~5\u00d7 more than input on most models \u2014 if you're getting long responses you don't need, be more directive |\n\n---\n\n### \u26a0\ufe0f Prerequisites for this dashboard to work\nYour machine must have this environment variable set by IT/MDM:\n```\nOTEL_RESOURCE_ATTRIBUTES=user.username=<your-github-handle>,deployment.environment=prod,...\n```\nIf your username doesn't appear in the dropdown, contact IT/Platform to confirm this has been pushed to your device and that VS Code has been restarted since then." }
+      },
+  
+      { "id": 300, "type": "row", "title": "\ud83d\udccc My Summary \u2014 Selected Period", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 }, "collapsed": false },
+  
+      {
+        "id": 1, "type": "stat", "title": "Total Input Tokens Used",
+        "description": "All input/prompt tokens you have sent to LLMs in the selected time window. Input tokens are the size of your prompt + context. This is what you control most directly \u2014 narrower context = fewer tokens.",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [$__range]))", "legendFormat": "Input Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "Total Output Tokens Received",
+        "description": "All output/completion tokens generated for you by LLMs. Output tokens are generated by the model and are typically priced higher than input. Receiving long answers you don't read is pure waste.",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [$__range]))", "legendFormat": "Output Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Total Prompts Sent",
+        "description": "Number of individual LLM calls (prompts) you have made. Each chat message or agent turn that triggers an LLM call counts as one. High prompt count with low token count = efficient, focused prompting.",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" [$__range]))", "legendFormat": "Prompts" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Avg Input Tokens per Prompt",
+        "description": "Average size of your prompts + context window per LLM call. If this is very high (>4000), you may be attaching large files or long chat history unnecessarily. Aim for the smallest context that gives a correct answer.",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [$__range])) / sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" [$__range]))", "legendFormat": "Avg Input/Prompt" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "#5BA85B", "value": null },
+            { "color": "#F0954A", "value": 4000 },
+            { "color": "#E0524A", "value": 8000 }
+          ] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 5, "type": "stat", "title": "Avg Output Tokens per Prompt",
+        "description": "Average length of LLM responses you receive. High values may mean the model is generating more than you need \u2014 try asking for concise answers or specific formats.",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [$__range])) / sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" [$__range]))", "legendFormat": "Avg Output/Prompt" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "#5BA85B", "value": null },
+            { "color": "#F0954A", "value": 1000 },
+            { "color": "#E0524A", "value": 3000 }
+          ] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 6, "type": "gauge", "title": "Input/Output Ratio",
+        "description": "Ratio of input tokens to total tokens. Higher = you are sending relatively more context than you receive back. A very low ratio means you're getting very long responses relative to what you sent \u2014 check if you actually need that much output.",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 10 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "100 * sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [$__range])) / (sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [$__range])) + sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [$__range])))", "legendFormat": "Input %" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "#E0524A", "value": null },
+            { "color": "#5BA85B", "value": 40 },
+            { "color": "#F0954A", "value": 85 }
+          ] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true }
+      },
+  
+      { "id": 301, "type": "row", "title": "\ud83d\udcc5 Usage Over Time", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "collapsed": false },
+  
+      {
+        "id": 10, "type": "timeseries", "title": "Daily Token Usage \u2014 Input vs Output",
+        "description": "Your input and output token consumption broken down by day. Look for days with unusually high usage and cross-reference with your session log below to understand what you were working on.",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 15 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [1d]))", "legendFormat": "Input Tokens (daily)" },
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [1d]))", "legendFormat": "Output Tokens (daily)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 20, "lineWidth": 2, "barAlignment": 0 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input Tokens (daily)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output Tokens (daily)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+  
+      {
+        "id": 11, "type": "barchart", "title": "Weekly Token Usage",
+        "description": "Total tokens used per week (input + output combined). Useful for spotting high-usage weeks tied to large features or debugging sessions. If a week is much higher than others, check the prompt log below for that period.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 24 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [7d]))", "legendFormat": "Input (weekly)" },
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [7d]))", "legendFormat": "Output (weekly)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "stacking": { "mode": "normal" } } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input (weekly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output (weekly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" }, "xTickLabelRotation": -30 }
+      },
+      {
+        "id": 12, "type": "barchart", "title": "Monthly Token Usage",
+        "description": "Total tokens used per month, stacked by input and output. Use this to track whether your prompting efficiency is improving month-over-month \u2014 same output work for fewer input tokens = better prompting.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 24 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [30d]))", "legendFormat": "Input (monthly)" },
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [30d]))", "legendFormat": "Output (monthly)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "stacking": { "mode": "normal" } } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input (monthly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output (monthly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" }, "xTickLabelRotation": -30 }
+      },
+  
+      { "id": 302, "type": "row", "title": "\ud83e\udd16 Usage by Model", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 }, "collapsed": false },
+  
+      {
+        "id": 20, "type": "piechart", "title": "My Token Split by Model",
+        "description": "Which models are consuming your token budget. If a heavy model (e.g. claude-opus) is dominant but you're doing simple tasks, switching to a lighter model for those tasks would significantly reduce token cost and improve response speed.",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 34 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum by (gen_ai_request_model) (sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | gen_ai_request_model=~\"$model\" | unwrap gen_ai_usage_input_tokens [$__range]))", "legendFormat": "{{gen_ai_request_model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 21, "type": "barchart", "title": "Avg Tokens per Prompt by Model",
+        "description": "Average input token size per prompt, broken out by model. Differences here may reflect that you use different models for different task types. If one model consistently shows much higher avg input, check if you're attaching more context unnecessarily for that model.",
+        "gridPos": { "h": 9, "w": 8, "x": 8, "y": 34 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum by (gen_ai_request_model) (sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | gen_ai_request_model=~\"$model\" | unwrap gen_ai_usage_input_tokens [$__range])) / sum by (gen_ai_request_model) (count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | gen_ai_request_model=~\"$model\" [$__range]))", "legendFormat": "{{gen_ai_request_model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" } }
+      },
+      {
+        "id": 22, "type": "barchart", "title": "Prompt Count by Model",
+        "description": "Number of prompts sent to each model. Combined with the token split chart, you can see if a model that gets few prompts is consuming a disproportionate share of tokens (= those sessions are very large).",
+        "gridPos": { "h": 9, "w": 8, "x": 16, "y": 34 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum by (gen_ai_request_model) (count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | gen_ai_request_model=~\"$model\" [$__range]))", "legendFormat": "{{gen_ai_request_model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" } }
+      },
+  
+      { "id": 303, "type": "row", "title": "\ud83d\udd0d Per-Prompt Detail", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 }, "collapsed": false },
+  
+      {
+        "id": 30, "type": "table", "title": "My Prompts \u2014 Tokens Per Prompt",
+        "description": "Every individual LLM call with its token counts. Sorted by time descending. Use this to identify your most expensive individual prompts. The session_id column groups prompts from the same conversation. High input tokens on a single row = large context window sent; high output = long response received.",
+        "gridPos": { "h": 14, "w": 24, "x": 0, "y": 44 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "{user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | gen_ai_request_model=~\"$model\" | line_format \"model={{.gen_ai_request_model}} | in={{.gen_ai_usage_input_tokens}} | out={{.gen_ai_usage_output_tokens}} | op={{.gen_ai_operation_name}} | session={{.session_id}}\"", "legendFormat": "" }],
+        "options": { "showHeader": true, "sortBy": [{ "desc": true, "displayName": "Time" }] }
+      },
+  
+      { "id": 304, "type": "row", "title": "\ud83c\udfaf Efficiency Trends", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 }, "collapsed": false },
+  
+      {
+        "id": 40, "type": "timeseries", "title": "Avg Tokens per Prompt Over Time (7-day rolling)",
+        "description": "Rolling 7-day average of input tokens per prompt. A downward trend means your prompts are becoming more focused and efficient over time. Spikes indicate days where you worked on something requiring heavy context (e.g. large codebase analysis). Use this to track your efficiency improvement over weeks and months.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 59 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [7d])) / sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" [7d]))", "legendFormat": "Avg input tokens/prompt (7d)" },
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [7d])) / sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" [7d]))", "legendFormat": "Avg output tokens/prompt (7d)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Avg input tokens/prompt (7d)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Avg output tokens/prompt (7d)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 41, "type": "timeseries", "title": "Daily Prompt Count Over Time",
+        "description": "How many prompts you send per day. Combine this with the token chart: if prompt count is stable but total tokens rise, each prompt is getting heavier. If both rise together, you're just doing more work. A rising prompt count with falling per-prompt tokens = good efficiency improvement.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 59 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" [1d]))", "legendFormat": "Prompts per day" }],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "custom": { "fillOpacity": 20, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+  
+      { "id": 305, "type": "row", "title": "\ud83d\udcac Session Log", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 }, "collapsed": false },
+  
+      {
+        "id": 50, "type": "logs", "title": "My Raw Event Log",
+        "description": "Raw Copilot log stream for your user. Expand any row to see all parsed fields including session_id, model, operation type, token counts, and finish reason. Useful for finding the exact session behind a token spike on the charts above.",
+        "gridPos": { "h": 12, "w": 24, "x": 0, "y": 69 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "{user_username=\"$username\"} | json | gen_ai_request_model=~\"$model\"", "legendFormat": "" }],
+        "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true, "dedupStrategy": "none" }
+      },
+  
+      { "id": 306, "type": "row", "title": "\ud83d\udc65 How Do I Compare? (Team view)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 }, "collapsed": true, "panels": [
+        {
+          "id": 60, "type": "barchart", "title": "Token Usage Across Team (anonymised)",
+          "description": "Comparative view of input token usage across all users in the selected service. Your bar is highlighted. This is intended to help you understand if you're an outlier \u2014 not for performance management. If you're significantly above the team average, it may mean your workflow involves more context-heavy tasks, or there's room to tighten your prompts.",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 82 },
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "targets": [{ "expr": "sum by (user_username) (sum_over_time({} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [$__range]))", "legendFormat": "{{user_username}}" }],
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+        }
+      ] }
+  
+    ],
+    "annotations": { "list": [] },
+    "links": [
+      { "title": "All Metrics", "url": "/d/copilot-vm-metrics", "icon": "external link", "type": "link" },
+      { "title": "All Logs", "url": "/d/copilot-loki-logs", "icon": "external link", "type": "link" },
+      { "title": "Traces", "url": "/d/copilot-tempo-traces", "icon": "external link", "type": "link" }
+    ]
+  }
