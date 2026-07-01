@@ -1,0 +1,293 @@
+{
+    "__inputs": [
+      { "name": "DS_VICTORIAMETRICS", "label": "VictoriaMetrics", "type": "datasource", "pluginId": "prometheus" },
+      { "name": "DS_TEMPO", "label": "Tempo", "type": "datasource", "pluginId": "tempo" }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+      { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "text", "name": "Text", "version": "" }
+    ],
+    "uid": "copilot-vm-metrics",
+    "title": "Copilot \u2014 Metrics (VictoriaMetrics)",
+    "description": "All Copilot gen_ai.* and copilot_chat.* metrics from VictoriaMetrics. Uses dotted metric name quoting required by this pipeline. Deep-links to Tempo for trace drill-down.",
+    "tags": ["copilot", "metrics", "victoriametrics", "promql", "genai"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 2,
+    "refresh": "1m",
+    "time": { "from": "now-7d", "to": "now" },
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        { "name": "model", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, \"gen_ai.request.model\")", "refresh": 2, "multi": true, "includeAll": true, "label": "Model" },
+        { "name": "service_name", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, service_name)", "refresh": 2, "multi": true, "includeAll": true, "label": "Service" },
+        { "name": "environment", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, deployment_environment)", "refresh": 2, "multi": true, "includeAll": true, "label": "Environment" },
+        { "name": "operation", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.operation.duration_count\"}, \"gen_ai.operation.name\")", "refresh": 2, "multi": true, "includeAll": true, "label": "Operation" }
+      ]
+    },
+    "panels": [
+      {
+        "id": 999, "type": "text", "title": "\u2139\ufe0f How to use this dashboard",
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+        "options": { "mode": "markdown", "content": "## Copilot Metrics \u2014 VictoriaMetrics\n\n**Source:** All `gen_ai.*` and `copilot_chat.*` metrics from your OTel pipeline via VictoriaMetrics native OTLP ingestion.\n\n### \u26a0\ufe0f Naming convention (critical)\nThis pipeline preserves **dots in metric names**. All PromQL uses `{__name__=\"gen_ai.client.token.usage_sum\"}` not `gen_ai_client_token_usage_sum`. Labels use mixed convention: `service_name` (underscore) but `gen_ai.request.model` (dotted).\n\n### Filters\n- **Model** \u2014 filter by `gen_ai.request.model`\n- **Service** \u2014 filter by `service_name` (`copilot-chat` for extension, `github-copilot` for CLI sessions)\n- **Environment** \u2014 filter by `deployment.environment` (dev / nonprod / prod) \u2014 only populated if `OTEL_RESOURCE_ATTRIBUTES` is set on developer machines\n- **Operation** \u2014 filter by `gen_ai.operation.name` (chat, execute_tool, invoke_agent)\n\n### Sections\n| Section | What it shows |\n|---|---|\n| Summary Stats | Headline numbers for the selected window |\n| Token Usage | Input/output split, trends, cost estimate |\n| Latency | Duration and TTFT histograms per model |\n| Agent & Session | Agent invocation durations, session counts, turn counts |\n| Code Outcomes | Edit acceptance, lines added/removed, code survival |\n| Enterprise Seats | Active seat utilisation from `github.copilot.enterprise.*` |\n\n**If a panel shows No Data:** Open VictoriaMetrics Metrics Browser, search the metric name, confirm it exists with the exact dotted spelling shown in the panel query." }
+      },
+      { "id": 200, "type": "row", "title": "Summary Statistics", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "collapsed": false },
+      {
+        "id": 1, "type": "stat", "title": "Total Operations",
+        "description": "Count of all gen_ai client operations (chat, execute_tool, invoke_agent) in the selected range. Source: gen_ai.client.operation.duration_count summed across all operation types.",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Operations" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "Total Input Tokens",
+        "description": "Sum of all input tokens sent to models. Source: gen_ai.client.token.usage_sum filtered to gen_ai.token.type=input.",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Input Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 1 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Total Output Tokens",
+        "description": "Sum of all output/completion tokens generated by models. Source: gen_ai.client.token.usage_sum filtered to gen_ai.token.type=output.",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Output Tokens" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Avg Response Duration",
+        "description": "Average end-to-end operation duration across all models. Source: gen_ai.client.operation.duration_sum / _count.",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(rate({__name__=\"gen_ai.client.operation.duration_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range])) / sum(rate({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg Duration" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "s", "decimals": 2 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 5, "type": "stat", "title": "Avg TTFT",
+        "description": "Average time-to-first-token — the latency a user feels before seeing the first streamed response. Source: copilot_chat.time_to_first_token_sum / _count.",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(rate({__name__=\"copilot_chat.time_to_first_token_sum\", service_name=~\"$service_name\"}[$__range])) / sum(rate({__name__=\"copilot_chat.time_to_first_token_count\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg TTFT" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "s", "decimals": 2 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 6, "type": "stat", "title": "Active Seats (28d)",
+        "description": "GitHub Copilot enterprise seats active in the last 28 days. Source: github.copilot.enterprise.seat.active.last.28d. Only populated if your GitHub org emits this metric via the OTel pipeline.",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 7 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum({__name__=\"github.copilot.enterprise.seat.active.last.28d\", service_name=~\"$service_name\"})", "legendFormat": "Active Seats" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      { "id": 201, "type": "row", "title": "Token Usage", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 }, "collapsed": false },
+      {
+        "id": 10, "type": "timeseries", "title": "Input vs Output Tokens Over Time",
+        "description": "Hourly input and output token volume. A widening gap between input and output usually means growing context windows (large files, long chat history).",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1h]))", "legendFormat": "Input Tokens" },
+          { "expr": "sum(increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1h]))", "legendFormat": "Output Tokens" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input Tokens" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output Tokens" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 11, "type": "barchart", "title": "Token Consumption by Model (Daily)",
+        "description": "Daily total tokens (input + output) broken out by model. Shows which models are driving usage and cost.",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.request.model\") (increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "{{gen_ai.request.model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "stacking": { "mode": "normal" } } } },
+        "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 12, "type": "piechart", "title": "Token Type Distribution",
+        "description": "Proportion of input vs output tokens across the selected window. Output tokens are typically priced higher — watch this ratio for cost optimisation.",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.token.type\") (increase({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "{{gen_ai.token.type}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 13, "type": "table", "title": "Estimated Cost by Model",
+        "description": "Estimated spend per model using placeholder pricing ($3/M input, $15/M output). Update multipliers in the query to your actual contract rates before using for budgeting.",
+        "gridPos": { "h": 8, "w": 16, "x": 8, "y": 20 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.request.model\") ({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"input\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}) * 0.000003 + sum by (\"gen_ai.request.model\") ({__name__=\"gen_ai.client.token.usage_sum\", \"gen_ai.token.type\"=\"output\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}) * 0.000015", "legendFormat": "{{gen_ai.request.model}}", "format": "table" }],
+        "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 4 } },
+        "options": { "showHeader": true }
+      },
+      { "id": 202, "type": "row", "title": "Latency", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "collapsed": false },
+      {
+        "id": 20, "type": "barchart", "title": "Response Duration by Model (Avg / P90)",
+        "description": "Average and P90 end-to-end duration per model. P90 shows tail latency that affects the slowest 10% of responses. Source: gen_ai.client.operation.duration histogram.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "avg by (\"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.duration_sum\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]) / rate({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Avg \u2014 {{gen_ai.request.model}}" },
+          { "expr": "histogram_quantile(0.90, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.duration_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P90 \u2014 {{gen_ai.request.model}}" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 21, "type": "barchart", "title": "Time to First Token by Model (P50 / P90)",
+        "description": "P50 and P90 time-to-first-token per model. This is the perceived snappiness a user feels before streaming begins. Source: copilot_chat.time_to_first_token histogram.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 29 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"copilot_chat.time_to_first_token_bucket\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P50 TTFT" },
+          { "expr": "histogram_quantile(0.90, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"copilot_chat.time_to_first_token_bucket\", service_name=~\"$service_name\"}[$__range])))", "legendFormat": "P90 TTFT" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 22, "type": "timeseries", "title": "Time Per Output Chunk (Streaming Speed)",
+        "description": "NEW METRIC \u2014 gen_ai.client.operation.time_per_output_chunk. Shows how fast the model streams individual chunks to the client. Rising values mean slower streaming even if total duration is acceptable.",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 38 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.time_per_output_chunk_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P50 chunk \u2014 {{gen_ai.request.model}}" },
+          { "expr": "histogram_quantile(0.90, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.time_per_output_chunk_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P90 chunk \u2014 {{gen_ai.request.model}}" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 23, "type": "timeseries", "title": "Time to First Chunk (NEW)",
+        "description": "NEW METRIC \u2014 gen_ai.client.operation.time_to_first_chunk. Time until the first streaming chunk arrives. Distinct from TTFT: measures stream initiation latency at the chunk level rather than the token level.",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 46 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.time_to_first_chunk_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P50 first chunk \u2014 {{gen_ai.request.model}}" },
+          { "expr": "histogram_quantile(0.90, sum by (le, \"gen_ai.request.model\") (rate({__name__=\"gen_ai.client.operation.time_to_first_chunk_bucket\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P90 first chunk \u2014 {{gen_ai.request.model}}" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 203, "type": "row", "title": "Agent & Session Activity", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 }, "collapsed": false },
+      {
+        "id": 30, "type": "stat", "title": "Chat Sessions",
+        "description": "Total Copilot Chat sessions started. Source: copilot_chat.session.count.",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"copilot_chat.session.count\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Sessions" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 31, "type": "stat", "title": "Agent Invocations",
+        "description": "NEW METRIC \u2014 Count of agent invocations. Source: copilot_chat.agent.invocation.duration_count. Each represents one full invoke_agent span (an entire user request handled by an agent).",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"copilot_chat.agent.invocation.duration_count\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Invocations" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 32, "type": "stat", "title": "Agent Turns",
+        "description": "NEW METRIC \u2014 Total agent turn count. Source: copilot_chat.agent.turn.count. Each turn is one round of LLM call(s) + tool execution(s) within a single agent invocation.",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"copilot_chat.agent.turn.count_count\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Turns" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 33, "type": "stat", "title": "Avg Turns per Invocation",
+        "description": "Average agent turns per invocation. Higher values mean more complex multi-step tasks. Source: agent.turn.count_sum / agent.invocation.duration_count.",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase({__name__=\"copilot_chat.agent.turn.count_sum\", service_name=~\"$service_name\"}[$__range])) / sum(increase({__name__=\"copilot_chat.agent.invocation.duration_count\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "Turns/Invocation" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 1 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 34, "type": "timeseries", "title": "Agent Invocation Duration Over Time (P50 / P90 / P99)",
+        "description": "NEW METRIC \u2014 How long complete agent invocations take. P99 spikes may indicate runaway tool loops or very large codebases. Source: copilot_chat.agent.invocation.duration histogram.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 59 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le) (rate({__name__=\"copilot_chat.agent.invocation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P50 Agent Duration" },
+          { "expr": "histogram_quantile(0.90, sum by (le) (rate({__name__=\"copilot_chat.agent.invocation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P90 Agent Duration" },
+          { "expr": "histogram_quantile(0.99, sum by (le) (rate({__name__=\"copilot_chat.agent.invocation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P99 Agent Duration" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 35, "type": "timeseries", "title": "Agent Turn Count Distribution Over Time",
+        "description": "NEW METRIC \u2014 Distribution of turns per agent invocation over time. P90 rising means increasingly complex requests requiring more tool-call iterations. Source: copilot_chat.agent.turn.count histogram.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 59 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le) (rate({__name__=\"copilot_chat.agent.turn.count_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P50 Turns" },
+          { "expr": "histogram_quantile(0.90, sum by (le) (rate({__name__=\"copilot_chat.agent.turn.count_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P90 Turns" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 204, "type": "row", "title": "Model Adoption", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 }, "collapsed": false },
+      {
+        "id": 40, "type": "piechart", "title": "Model Usage Distribution",
+        "description": "Share of total operations by model. Shows which models developers are using most across the org.",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 69 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.request.model\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "{{gen_ai.request.model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 41, "type": "barchart", "title": "Operations by Type",
+        "description": "Breakdown of operation types (chat, execute_tool, invoke_agent) showing the mix of conversational vs agentic usage.",
+        "gridPos": { "h": 9, "w": 8, "x": 8, "y": 69 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.operation.name\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.operation.name\"=~\"$operation\", service_name=~\"$service_name\"}[$__range]))", "legendFormat": "{{gen_ai.operation.name}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" } }
+      },
+      {
+        "id": 42, "type": "timeseries", "title": "Model Usage Trend Over Time",
+        "description": "Daily operation count per model — shows adoption trends and model switching behaviour over time.",
+        "gridPos": { "h": 9, "w": 8, "x": 16, "y": 69 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (\"gen_ai.request.model\") (increase({__name__=\"gen_ai.client.operation.duration_count\", \"gen_ai.request.model\"=~\"$model\", service_name=~\"$service_name\"}[1d]))", "legendFormat": "{{gen_ai.request.model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 205, "type": "row", "title": "Enterprise Seat Utilisation", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 78 }, "collapsed": false },
+      {
+        "id": 50, "type": "timeseries", "title": "Active Seats (28-day rolling)",
+        "description": "GitHub Copilot enterprise seats active in the last 28 days, tracked over time. Source: github.copilot.enterprise.seat.active.last.28d. Only populated if this metric is emitted via your OTel pipeline.",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 79 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum({__name__=\"github.copilot.enterprise.seat.active.last.28d\", service_name=~\"$service_name\"})", "legendFormat": "Active Seats (28d)" }],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "custom": { "fillOpacity": 20, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      }
+    ],
+    "annotations": { "list": [] },
+    "links": [
+      { "title": "Loki Dashboard", "url": "/d/copilot-loki-logs", "icon": "external link", "type": "link" },
+      { "title": "Tempo Dashboard", "url": "/d/copilot-tempo-traces", "icon": "external link", "type": "link" }
+    ]
+  }

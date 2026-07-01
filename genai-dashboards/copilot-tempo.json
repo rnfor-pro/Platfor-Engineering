@@ -1,0 +1,165 @@
+{
+    "__inputs": [
+      { "name": "DS_TEMPO", "label": "Tempo", "type": "datasource", "pluginId": "tempo" },
+      { "name": "DS_VICTORIAMETRICS", "label": "VictoriaMetrics", "type": "datasource", "pluginId": "prometheus" }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "tempo", "name": "Tempo", "version": "1.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "traces", "name": "Traces", "version": "" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "nodeGraph", "name": "Node graph", "version": "" },
+      { "type": "panel", "id": "text", "name": "Text", "version": "" }
+    ],
+    "uid": "copilot-tempo-traces",
+    "title": "Copilot \u2014 Traces (Tempo)",
+    "description": "GitHub Copilot distributed traces from Tempo. Search, filter, and drill into individual Copilot interactions at the span level — see every LLM call, tool execution, agent turn, and hook with precise timing and gen_ai.* attributes.",
+    "tags": ["copilot", "traces", "tempo", "traceql", "genai"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1m",
+    "time": { "from": "now-3h", "to": "now" },
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        { "name": "service_name", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, service_name)", "refresh": 2, "multi": true, "includeAll": true, "label": "Service" },
+        { "name": "model", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values({__name__=\"gen_ai.client.token.usage_count\"}, \"gen_ai.request.model\")", "refresh": 2, "multi": true, "includeAll": true, "label": "Model" },
+        { "name": "operation", "type": "custom", "query": "ALL,chat,execute_tool,invoke_agent,execute_hook", "multi": false, "includeAll": false, "current": { "text": "ALL", "value": "ALL" }, "label": "Operation" },
+        { "name": "min_duration", "type": "custom", "query": "0ms,500ms,1s,5s,10s,30s", "multi": false, "includeAll": false, "current": { "text": "0ms", "value": "0ms" }, "label": "Min Duration" }
+      ]
+    },
+    "panels": [
+      {
+        "id": 999, "type": "text", "title": "\u2139\ufe0f How to use this dashboard",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+        "options": { "mode": "markdown", "content": "## Copilot Traces \u2014 Tempo\n\n**Source:** Distributed traces from GitHub Copilot Chat, captured as OTel spans and stored in Tempo. Each Copilot interaction produces a root `invoke_agent` or `chat` span with nested child spans for every tool call, LLM call, and hook.\n\n### Span tree structure (what you'll see per interaction)\n```\ninvoke_agent [root] \u2014 entire agent orchestration\n\u251c\u2500\u2500 chat \u2014 one LLM call (model request + response)\n\u251c\u2500\u2500 execute_tool readFile \u2014 tool call with timing\n\u251c\u2500\u2500 execute_tool runCommand\n\u251c\u2500\u2500 execute_hook PreToolUse \u2014 hook pass/block\n\u2514\u2500\u2500 chat \u2014 follow-up LLM call after tool results\n```\n\n### Key span attributes (dotted, native OTel)\n- `gen_ai.request.model` \u2014 model requested\n- `gen_ai.response.model` \u2014 model that actually responded (may differ)\n- `gen_ai.operation.name` \u2014 chat / execute_tool / invoke_agent\n- `gen_ai.token.type` \u2014 input / output\n- `service.name` \u2014 copilot-chat or github-copilot (CLI)\n- `gen_ai.agent.name` \u2014 agent identifier\n- `gen_ai.response.finish_reasons` \u2014 stop, max_tokens, content_filter, etc.\n\n### Filters\n- **Service** \u2014 scope to copilot-chat (extension) or github-copilot (CLI)\n- **Model** \u2014 filter by model (uses VictoriaMetrics for label population)\n- **Operation** \u2014 focus on specific span types\n- **Min Duration** \u2014 find slow interactions\n\n### Workflow\n1. Use **Red Signals** section to spot error/slow traces\n2. Use **Trace Search** table to find specific interactions\n3. Click a trace row to open the **Trace Detail** panel and see every span\n4. Use **Node Graph** to visualise the service topology (if enabled in Tempo)\n\n### \u26a0\ufe0f Tempo TraceQL attribute names use dots (not underscores)\nExample: `{ span.gen_ai.operation.name = \"chat\" }` NOT `{ span.gen_ai_operation_name = \"chat\" }`" }
+      },
+      { "id": 200, "type": "row", "title": "Red Signals \u2014 Errors & Slow Traces", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "collapsed": false },
+      {
+        "id": 1, "type": "stat", "title": "Error Traces",
+        "description": "Count of traces with at least one error span in the selected window. Source: TraceQL status=error filter.",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 9 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [{ "id": "status", "tag": "status", "operator": "=", "value": ["error"], "valueType": "keyword" }, { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" }], "tableType": "traces" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#E0524A" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["count"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "Slow Traces (>10s)",
+        "description": "Count of traces with root span duration over 10 seconds. These are the interactions most likely to frustrate developers.",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 9 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [{ "id": "duration", "tag": "duration", "operator": ">", "value": ["10s"], "valueType": "duration" }, { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" }], "tableType": "traces" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["count"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Total Traces",
+        "description": "Total count of root traces (invoke_agent or chat) from Copilot in the selected window.",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 9 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [{ "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" }], "tableType": "traces" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["count"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Unique Models Seen",
+        "description": "Count of distinct model names observed in trace span attributes during the selected window. Useful to confirm model variety is being captured.",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 9 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [{ "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" }, { "id": "model", "tag": "gen_ai.request.model", "operator": "=~", "value": ["$model"], "valueType": "string" }], "tableType": "spans" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["uniqueValues"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 10, "type": "table", "title": "Error Traces \u2014 Investigate These First",
+        "description": "Traces where at least one span has status=error. Click a trace row to load it in the Trace Detail panel below. Look at finish_reasons and error attributes on the failing span.",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 13 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [{ "id": "status", "tag": "status", "operator": "=", "value": ["error"], "valueType": "keyword" }, { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" }, { "id": "model", "tag": "gen_ai.request.model", "operator": "=~", "value": ["$model"], "valueType": "string" }], "limit": 50, "tableType": "traces" }],
+        "options": {}
+      },
+      { "id": 201, "type": "row", "title": "Trace Search", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "collapsed": false },
+      {
+        "id": 20, "type": "table", "title": "All Recent Traces",
+        "description": "Searchable table of recent Copilot traces. Filter by Model, Service, Operation, or Min Duration using the dashboard variables above. Click any row to open that trace in the Trace Detail panel below. Each row is one complete Copilot interaction.",
+        "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [
+          { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" },
+          { "id": "model", "tag": "gen_ai.request.model", "operator": "=~", "value": ["$model"], "valueType": "string" },
+          { "id": "duration-min", "tag": "duration", "operator": ">=", "value": ["$min_duration"], "valueType": "duration" }
+        ], "limit": 200, "tableType": "traces" }],
+        "options": {}
+      },
+      { "id": 202, "type": "row", "title": "Span-Level Search", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 }, "collapsed": false },
+      {
+        "id": 25, "type": "table", "title": "Slowest Tool-Call Spans",
+        "description": "Individual execute_tool spans sorted by duration. Identifies which specific tools are creating latency within agent interactions. Source: TraceQL span search on execute_tool spans.",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 37 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [
+          { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" },
+          { "id": "operation", "tag": "gen_ai.operation.name", "operator": "=", "value": ["execute_tool"], "valueType": "string" }
+        ], "limit": 50, "tableType": "spans" }],
+        "options": {}
+      },
+      {
+        "id": 26, "type": "table", "title": "Slowest Chat Spans by Model",
+        "description": "Individual chat spans (LLM calls) sorted by duration. Shows which model invocations are taking longest. Drill into a row's parent trace to see the full interaction context.",
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 37 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "queryType": "traceqlSearch", "filters": [
+          { "id": "service-name", "tag": "service.name", "operator": "=~", "value": ["$service_name"], "valueType": "string" },
+          { "id": "model", "tag": "gen_ai.request.model", "operator": "=~", "value": ["$model"], "valueType": "string" },
+          { "id": "operation", "tag": "gen_ai.operation.name", "operator": "=", "value": ["chat"], "valueType": "string" }
+        ], "limit": 50, "tableType": "spans" }],
+        "options": {}
+      },
+      { "id": 203, "type": "row", "title": "TraceQL Explorer", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 }, "collapsed": false },
+      {
+        "id": 30, "type": "table", "title": "Custom TraceQL Query",
+        "description": "Use this panel to run any TraceQL query directly. Example queries:\n- All chat spans: `{ span.gen_ai.operation.name = \"chat\" }`\n- Slow agents: `{ rootName = \"invoke_agent\" && duration > 30s }`\n- Specific model: `{ span.gen_ai.request.model = \"claude-opus-4-6\" }`\n- Errors only: `{ status = error }`\n- MCP tool calls: `{ span.gen_ai.tool.type = \"extension\" }`\n\nEdit the target expression directly in panel edit mode.",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 48 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "query": "{ resource.service.name =~ \"$service_name\" && span.gen_ai.request.model =~ \"$model\" }", "queryType": "traceql", "tableType": "traces", "limit": 100 }],
+        "options": {}
+      },
+      { "id": 204, "type": "row", "title": "Trace Detail", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 }, "collapsed": false },
+      {
+        "id": 40, "type": "traces", "title": "Trace Detail \u2014 Full Span Breakdown",
+        "description": "Full span-level breakdown of a selected trace. Shows every child span (chat, execute_tool, invoke_agent, execute_hook), their gen_ai.* attributes, and exact timing. Equivalent to the App Insights 'End-to-end transaction' view. Select a trace from any table above to load it here. Look for: long chat spans (slow model), many execute_tool spans (complex agentic task), execute_hook spans that show pass/block decisions.",
+        "gridPos": { "h": 14, "w": 24, "x": 0, "y": 59 },
+        "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+        "targets": [{ "query": "", "queryType": "traceql" }],
+        "options": {}
+      },
+      { "id": 205, "type": "row", "title": "Latency Metrics (from Tempo via VictoriaMetrics exemplars)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 73 }, "collapsed": false },
+      {
+        "id": 50, "type": "timeseries", "title": "Operation Duration P50 / P90 / P99 Over Time",
+        "description": "Latency percentiles over time pulled from VictoriaMetrics (not Tempo), displayed here for correlation with trace activity above. Click any data point \u2014 if exemplar linking is configured in Grafana datasource settings, you can jump directly to the trace that represents that latency value.",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 74 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, sum by (le) (rate({__name__=\"gen_ai.client.operation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P50 Duration" },
+          { "expr": "histogram_quantile(0.90, sum by (le) (rate({__name__=\"gen_ai.client.operation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P90 Duration" },
+          { "expr": "histogram_quantile(0.99, sum by (le) (rate({__name__=\"gen_ai.client.operation.duration_bucket\", service_name=~\"$service_name\"}[5m])))", "legendFormat": "P99 Duration" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "P99 Duration" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0524A" } }] },
+          { "matcher": { "id": "byName", "options": "P90 Duration" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F0954A" } }] },
+          { "matcher": { "id": "byName", "options": "P50 Duration" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      }
+    ],
+    "annotations": { "list": [] },
+    "links": [
+      { "title": "Metrics Dashboard", "url": "/d/copilot-vm-metrics", "icon": "external link", "type": "link" },
+      { "title": "Logs Dashboard", "url": "/d/copilot-loki-logs", "icon": "external link", "type": "link" }
+    ]
+  }
