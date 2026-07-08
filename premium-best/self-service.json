@@ -1,0 +1,314 @@
+{
+    "__inputs": [
+      { "name": "DS_VICTORIAMETRICS", "label": "VictoriaMetrics", "type": "datasource", "pluginId": "prometheus" },
+      { "name": "DS_LOKI", "label": "Loki", "type": "datasource", "pluginId": "loki" },
+      { "name": "DS_TEMPO", "label": "Tempo", "type": "datasource", "pluginId": "tempo" }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+      { "type": "datasource", "id": "tempo", "name": "Tempo", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+      { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" },
+      { "type": "panel", "id": "logs", "name": "Logs", "version": "" },
+      { "type": "panel", "id": "text", "name": "Text", "version": "" }
+    ],
+    "uid": "copilot-user-selfservice",
+    "title": "Copilot \u2014 My Activity & Token Usage (Self-Service)",
+    "description": "Developer self-service dashboard. Enter your GitHub username to see your Copilot activity, token consumption, AI credit usage, model choices, code outcomes, and MCP/agent usage. Combines GitHub API daily data (accurate, 24h lag) with real-time OTel data where available.",
+    "tags": ["copilot", "self-service", "user", "tokens", "efficiency"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "5m",
+    "time": { "from": "now-30d", "to": "now" },
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        {
+          "name": "username",
+          "type": "query",
+          "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+          "query": "label_values(github_copilot_user_usage_day_marker, user_login)",
+          "refresh": 2,
+          "multi": false,
+          "includeAll": false,
+          "label": "\ud83d\udc64 My GitHub Username",
+          "description": "Your GitHub login. Populated from the exporter's users-1-day report. No MDM setup required."
+        },
+        {
+          "name": "enterprise",
+          "type": "query",
+          "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+          "query": "label_values(github_copilot_enterprise_seat_total, enterprise)",
+          "refresh": 2,
+          "multi": false,
+          "includeAll": false,
+          "label": "Enterprise",
+          "hide": 1
+        },
+        {
+          "name": "monthly_budget",
+          "type": "textbox",
+          "current": { "text": "1000", "value": "1000" },
+          "label": "\ud83d\udcb0 My Monthly AI Credit Budget",
+          "description": "Enter your team's monthly AI credit allocation. Used to show budget remaining gauge."
+        },
+        {
+          "name": "model",
+          "type": "query",
+          "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+          "query": "label_values(github_copilot_user_model_feature_prompt_count{user_login=\"$username\"}, model)",
+          "refresh": 2,
+          "multi": true,
+          "includeAll": true,
+          "label": "Model",
+          "current": { "text": "All", "value": "$__all" }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 999, "type": "text", "title": "\ud83d\udcca My Copilot Activity & Token Usage",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+        "options": { "mode": "markdown", "content": "## \ud83d\udcca My Copilot Activity & Token Usage\n\n**How to use this dashboard:**\n1. Select **your GitHub username** from the \"\ud83d\udc64 My GitHub Username\" dropdown. This comes directly from GitHub's API via the exporter \u2014 no machine configuration required.\n2. Set your **Monthly AI Credit Budget** if your team has an allocation (check with your manager or billing admin).\n3. Use the **time picker** (top right) to switch between today, this week, or this month.\n4. Use the **Model** filter to compare usage across specific models.\n\n---\n\n### \ud83d\udce1 Two data sources, two different views\n\n| Section | Source | Lag | What it shows |\n|---|---|---|---|\n| **Daily / Weekly / Monthly stats** | GitHub API (exporter, `users-1-day` report) | ~24h | Authoritative daily aggregates with your real GitHub username |\n| **Real-time activity** | VS Code OTel \u2192 Loki | Seconds | Per-interaction events (requires VS Code OTel config by IT) |\n\n**The GitHub API data (daily stats) is always accurate** \u2014 it comes from GitHub's own servers and includes every Copilot interaction regardless of network conditions.\n\n**The real-time Loki panels** require `OTEL_RESOURCE_ATTRIBUTES=user.username=<your-github-handle>` to be set on your machine by IT. If those panels show no data, contact the platform team.\n\n---\n\n### \ud83d\udca1 Token efficiency tips\n| Tip | Saves tokens |\n|---|---|\n| Be specific and scoped in your prompt | Fewer back-and-forth turns |\n| Only attach files directly relevant to the task | Smaller context window |\n| Use smaller models (gpt-4o-mini, etc.) for simple tasks | Lower cost per token |\n| Avoid repeating the same question in different words | One good prompt \u003e three vague ones |\n| Ask for concise output explicitly | Cuts output tokens significantly |" }
+      },
+      { "id": 300, "type": "row", "title": "\ud83d\udccc My Summary (Selected Period)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 }, "collapsed": false },
+      {
+        "id": 1, "type": "stat", "title": "Active Days",
+        "description": "Number of days you used at least one Copilot feature in the selected period. Source: github_copilot_user_usage_day_marker — one data point per day you were active.",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "count(github_copilot_user_usage_day_marker{enterprise=\"$enterprise\", user_login=\"$username\"})", "legendFormat": "Active Days" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "AI Credits Used",
+        "description": "Premium AI credits consumed in the selected period. Source: github_copilot_user_usage_ai_credits_used. AI credits map to premium model requests (Claude Opus, GPT-4o, etc.). Standard model requests do not consume AI credits.",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", user_login=\"$username\"}[$__range]))", "legendFormat": "AI Credits" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 1 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Total Prompts",
+        "description": "Total number of prompts/completions you triggered across all Copilot features (completions, chat, CLI). Source: sum of github_copilot_user_model_feature_prompt_count across all models and features.",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[$__range]))", "legendFormat": "Total Prompts" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Lines of Code Added",
+        "description": "Lines of AI-generated code you accepted and added to your codebase. Source: github_copilot_user_model_feature_loc_added_sum. This is the primary productivity signal \u2014 how much code did Copilot actually write for you.",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(increase(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[$__range]))", "legendFormat": "LOC Added" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 5, "type": "stat", "title": "My Adoption Phase",
+        "description": "Your current AI adoption phase as classified by GitHub (Explorer / Developer / Power User). This updates daily and reflects your usage pattern over the recent reporting window.",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "github_copilot_user_usage_ai_adoption_phase{enterprise=\"$enterprise\", user_login=\"$username\"}", "legendFormat": "{{ai_adoption_phase}}" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "short" } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "name" }
+      },
+      {
+        "id": 6, "type": "gauge", "title": "AI Credit Budget Used",
+        "description": "AI credits used this month as a percentage of your team's monthly budget. Set the budget using the 'Monthly AI Credit Budget' variable at the top. This is your primary budget health indicator.",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 10 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "100 * sum(increase(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", user_login=\"$username\"}[30d])) / $monthly_budget", "legendFormat": "Budget %" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "decimals": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "#5BA85B", "value": null }, { "color": "#F0954A", "value": 70 }, { "color": "#E0524A", "value": 90 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true }
+      },
+      { "id": 301, "type": "row", "title": "\ud83d\udcc5 Daily Usage", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "collapsed": false },
+      {
+        "id": 10, "type": "timeseries", "title": "My Daily AI Credit Consumption",
+        "description": "AI credits you consumed each day. Credits represent premium model requests. Gaps = days you didn't use premium models (may have used standard models instead, which don't consume credits). Source: github_copilot_user_usage_ai_credits_used.",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", user_login=\"$username\"}", "legendFormat": "Daily AI Credits" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "custom": { "fillOpacity": 20, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 11, "type": "timeseries", "title": "My Daily Prompt Count",
+        "description": "Number of Copilot prompts/completions per day, broken out by model. Spikes on specific days reflect heavier Copilot use. Cross-reference with your work calendar to understand which tasks drove usage. Source: github_copilot_user_model_feature_prompt_count.",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (model) (github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"})", "legendFormat": "{{model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 302, "type": "row", "title": "\ud83d\udcc6 Weekly & Monthly Totals", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "collapsed": false },
+      {
+        "id": 20, "type": "barchart", "title": "Weekly AI Credits",
+        "description": "Total AI credits consumed per week. Use this to identify high-usage weeks (major features, debugging sessions, large refactors). Rising trend without proportional code output may indicate inefficient prompting.",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum_over_time(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", user_login=\"$username\"}[7d])", "legendFormat": "Weekly Credits" }],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#9C5FE0" } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      {
+        "id": 21, "type": "barchart", "title": "Weekly Prompts",
+        "description": "Total prompts per week by model. Compare to the AI credits panel \u2014 if prompts are high but credits are low, you're using standard (non-premium) models efficiently. If both are high, consider whether task complexity justifies premium model usage.",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (model) (sum_over_time(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[7d]))", "legendFormat": "{{model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 22, "type": "barchart", "title": "Weekly Lines of Code Added",
+        "description": "AI-generated lines of code accepted per week. This is your weekly productivity signal \u2014 how many lines did Copilot write for you that you kept. Combine with prompt count to see LOC per prompt (your output efficiency).",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(sum_over_time(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[7d]))", "legendFormat": "LOC Added" }],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#5BA85B" } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      { "id": 303, "type": "row", "title": "\ud83e\udd16 Model & Feature Breakdown", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 }, "collapsed": false },
+      {
+        "id": 30, "type": "piechart", "title": "My Prompt Share by Model",
+        "description": "Which models you use most. If premium models dominate for tasks that don't need them, switching to standard models for routine work could significantly reduce AI credit consumption.",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 33 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (model) (increase(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[$__range]))", "legendFormat": "{{model}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 31, "type": "piechart", "title": "My Prompts by Feature Type",
+        "description": "How you use Copilot \u2014 completions (inline suggestions), chat, or CLI. Most efficient pattern: high completions (passive, low-effort), moderate chat for explanations, CLI for command generation.",
+        "gridPos": { "h": 9, "w": 8, "x": 8, "y": 33 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (feature) (increase(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\"}[$__range]))", "legendFormat": "{{feature}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 32, "type": "barchart", "title": "AI Credit Cost by Model",
+        "description": "Total AI credits consumed per model. This is the billing-facing view of your model usage. Premium models (Claude Opus, GPT-4o, etc.) consume credits per request; standard models (GPT-4o-mini equivalents) do not.",
+        "gridPos": { "h": 9, "w": 8, "x": 16, "y": 33 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (model) (increase(github_copilot_billing_ai_credit_net_amount{enterprise=\"$enterprise\", user_login=\"$username\", model=~\"$model\"}[$__range]))", "legendFormat": "{{model}}", "instant": true }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" } }
+      },
+      { "id": 304, "type": "row", "title": "\ud83d\udcbb Code Generation Outcomes", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 }, "collapsed": false },
+      {
+        "id": 40, "type": "timeseries", "title": "My Lines of Code Over Time (Added vs Removed)",
+        "description": "Daily lines of AI-generated code you added vs removed. Net LOC is the value Copilot delivered. A rising removed line suggests you're accepting suggestions you later reject \u2014 consider being more selective before accepting completions.",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\", user_login=\"$username\"})", "legendFormat": "LOC Added" },
+          { "expr": "sum(github_copilot_user_model_feature_loc_removed_sum{enterprise=\"$enterprise\", user_login=\"$username\"})", "legendFormat": "LOC Removed" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "LOC Added" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] },
+          { "matcher": { "id": "byName", "options": "LOC Removed" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#E0524A" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 41, "type": "timeseries", "title": "My LOC per Prompt Over Time (Efficiency Trend)",
+        "description": "Lines of code added per prompt sent. A rising trend means you're getting more code from each interaction \u2014 your prompting is becoming more efficient. Declining trend: either more complex tasks or more exploratory/conversational use. Source: loc_added_sum / prompt_count.",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(rate(github_copilot_user_model_feature_loc_added_sum{enterprise=\"$enterprise\", user_login=\"$username\"}[7d])) / clamp_min(sum(rate(github_copilot_user_model_feature_prompt_count{enterprise=\"$enterprise\", user_login=\"$username\"}[7d])), 0.01)", "legendFormat": "LOC per prompt (7d avg)" }],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "custom": { "fillOpacity": 15, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      { "id": 305, "type": "row", "title": "\u26a1 Real-Time Activity (VS Code OTel \u2014 requires IT config)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 }, "collapsed": false },
+      {
+        "id": 50, "type": "text", "title": "\u26a0\ufe0f Real-time panels prerequisite",
+        "gridPos": { "h": 3, "w": 24, "x": 0, "y": 52 },
+        "options": { "mode": "markdown", "content": "**These panels require** `OTEL_RESOURCE_ATTRIBUTES=user.username=<your-github-handle>` to be set on your machine by IT/Endpoint Management (pushed via MDM/Intune/GPO). If the panels below show 'No data', contact the platform team. The daily stats above are unaffected \u2014 they use the GitHub API directly." }
+      },
+      {
+        "id": 51, "type": "timeseries", "title": "Real-Time Token Usage (Loki \u2014 per interaction)",
+        "description": "Per-interaction token counts extracted from Loki OTel logs. Unlike the daily API data above, this shows individual LLM calls as they happen. Requires user.username to be set in your OTel resource attributes.",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 55 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [1h]))", "legendFormat": "Input tokens (hourly)" },
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_output_tokens != \"\" | unwrap gen_ai_usage_output_tokens [1h]))", "legendFormat": "Output tokens (hourly)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Input tokens (hourly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#9C5FE0" } }] },
+          { "matcher": { "id": "byName", "options": "Output tokens (hourly)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 52, "type": "table", "title": "My Recent Prompts (Loki \u2014 real-time)",
+        "description": "Individual LLM calls from Loki with model, input tokens, output tokens, operation type, and session ID. Each row is one prompt. Sort by input tokens to find your most expensive individual interactions.",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 55 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "{user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | line_format \"{{.gen_ai_request_model}} | in={{.gen_ai_usage_input_tokens}} | out={{.gen_ai_usage_output_tokens}} | {{.gen_ai_operation_name}}\"", "legendFormat": "" }],
+        "options": { "showHeader": true, "sortBy": [{ "desc": true, "displayName": "Time" }] }
+      },
+      { "id": 306, "type": "row", "title": "\ud83d\udd0e MCP & Agent Activity (OTel real-time)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 }, "collapsed": false },
+      {
+        "id": 60, "type": "logs", "title": "My MCP Tool Call Events",
+        "description": "Log events for MCP tool calls you triggered via Copilot agents. Each row is one tool invocation. Expand a row to see: mcp_server_name, tool_name, gen_ai_operation_name=execute_tool. Use this to understand which MCP servers and tools you use most.",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 64 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "{user_username=\"$username\"} | json | gen_ai_operation_name = \"execute_tool\"", "legendFormat": "" }],
+        "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true }
+      },
+      {
+        "id": 61, "type": "logs", "title": "My Agent Invocations",
+        "description": "Agent invocations you triggered. Each row is one full agent session (invoke_agent span). Expand to see: gen_ai_agent_name, turn count, total duration, and which models were called during the session.",
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 64 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [{ "expr": "{user_username=\"$username\"} | json | gen_ai_operation_name = \"invoke_agent\"", "legendFormat": "" }],
+        "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true }
+      },
+      { "id": 307, "type": "row", "title": "\u23f1 Hourly Breakdown (Today)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 74 }, "collapsed": false },
+      {
+        "id": 70, "type": "timeseries", "title": "My Hourly Token Activity (Today)",
+        "description": "Token consumption broken down by hour for the current day. Shows your productivity pattern throughout the working day. Peaks in morning/afternoon typically correlate with active coding sessions. Source: Loki OTel data (requires real-time config).",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 75 },
+        "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+        "targets": [
+          { "expr": "sum(sum_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" | unwrap gen_ai_usage_input_tokens [1h]))", "legendFormat": "Input tokens" },
+          { "expr": "sum(count_over_time({user_username=\"$username\"} | json | gen_ai_usage_input_tokens != \"\" [1h]))", "legendFormat": "Prompt count" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 308, "type": "row", "title": "\ud83d\udcdc My Full Event Log", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 83 }, "collapsed": true, "panels": [
+        {
+          "id": 80, "type": "logs", "title": "All My Copilot Events",
+          "description": "Complete raw Copilot OTel event log filtered to your username. Enable 'Log details' on any row to see all parsed fields including session_id, span_id, MCP server names, model, token counts, and finish reasons.",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 84 },
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "targets": [{ "expr": "{user_username=\"$username\"} | json", "legendFormat": "" }],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": false, "sortOrder": "Descending", "enableLogDetails": true, "dedupStrategy": "none" }
+        }
+      ] }
+    ],
+    "annotations": { "list": [] },
+    "links": [
+      { "title": "Cohorts Dashboard", "url": "/d/copilot-cohorts", "icon": "external link", "type": "link" },
+      { "title": "Metrics Overview", "url": "/d/copilot-vm-metrics", "icon": "external link", "type": "link" },
+      { "title": "All Traces", "url": "/d/copilot-tempo-traces", "icon": "external link", "type": "link" }
+    ]
+  }

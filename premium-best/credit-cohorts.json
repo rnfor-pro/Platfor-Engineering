@@ -1,0 +1,235 @@
+{
+    "__inputs": [
+      { "name": "DS_VICTORIAMETRICS", "label": "VictoriaMetrics", "type": "datasource", "pluginId": "prometheus" },
+      { "name": "DS_LOKI", "label": "Loki", "type": "datasource", "pluginId": "loki" }
+    ],
+    "__requires": [
+      { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.0.0" },
+      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+      { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+      { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+      { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+      { "type": "panel", "id": "piechart", "name": "Pie chart", "version": "" },
+      { "type": "panel", "id": "barchart", "name": "Bar chart", "version": "" },
+      { "type": "panel", "id": "table", "name": "Table", "version": "" },
+      { "type": "panel", "id": "text", "name": "Text", "version": "" }
+    ],
+    "uid": "copilot-cohorts",
+    "title": "Copilot \u2014 Adoption Cohorts & User Segments",
+    "description": "Cohort-based view of GitHub Copilot adoption across the enterprise. Powered by the GitHub Copilot exporter (users-1-day API report). Shows AI adoption phases, engagement tiers, activation trends, and cohort migration over time.",
+    "tags": ["copilot", "cohorts", "adoption", "exporter", "enterprise"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "version": 1,
+    "refresh": "1h",
+    "time": { "from": "now-90d", "to": "now" },
+    "graphTooltip": 1,
+    "templating": {
+      "list": [
+        { "name": "enterprise", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values(github_copilot_enterprise_seat_total, enterprise)", "refresh": 2, "multi": false, "includeAll": false, "label": "Enterprise" },
+        { "name": "org", "type": "query", "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" }, "query": "label_values(github_copilot_user_usage_ai_adoption_phase{enterprise=\"$enterprise\"}, org)", "refresh": 2, "multi": true, "includeAll": true, "label": "Organisation" },
+        { "name": "phase", "type": "custom", "query": "All :.*,Explorer :Explorer,Developer :Developer,Power User :Power User", "multi": false, "includeAll": false, "current": { "text": "All", "value": ".*" }, "label": "Adoption Phase" }
+      ]
+    },
+    "panels": [
+      {
+        "id": 999, "type": "text", "title": "\u2139\ufe0f How to read this dashboard",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+        "options": { "mode": "markdown", "content": "## Copilot Adoption Cohorts\n\n**Data source:** GitHub Copilot exporter \u2192 `users-1-day` API report \u2192 VictoriaMetrics. Data has a ~24h lag (yesterday's activity visible today).\n\n### AI Adoption Phase definitions (set by GitHub, not configurable)\n| Phase | Definition |\n|---|---|\n| **Explorer** | Has a Copilot seat but has not yet used any Copilot feature in the reporting window |\n| **Developer** | Has used at least one Copilot feature (completions, chat, CLI) at least once |\n| **Power User** | Meets GitHub's threshold for sustained, multi-feature engagement (exact threshold not published by GitHub) |\n\n### Cohort migration\nUsers move between phases as their usage changes. A user who was an Explorer last week may become a Developer this week. Tracking phase transitions over time shows the health of your adoption programme.\n\n### Filters\n- **Enterprise** \u2014 your GitHub Enterprise slug\n- **Organisation** \u2014 filter to a specific org within the enterprise, or All\n- **Adoption Phase** \u2014 narrow charts to one phase for deep-dives\n\n### Sections\n| Section | What it shows |\n|---|---|\n| Headline Stats | Current phase counts and coverage ratios |\n| Phase Distribution | How users are spread across phases today and over time |\n| Activation Funnel | Seat \u2192 activated \u2192 active 7d \u2192 active 28d \u2192 Power User |\n| Cohort Migration | How phase membership changes week-over-week |\n| User Lists | Actual user_login values per phase (from exporter) for targeted outreach |\n| Token Usage by Cohort | Token consumption segmented by adoption phase |" }
+      },
+      { "id": 200, "type": "row", "title": "Headline Stats", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 8 }, "collapsed": false },
+      {
+        "id": 1, "type": "stat", "title": "Explorer Count",
+        "description": "Users with a Copilot seat who have not yet engaged with any Copilot feature. Primary target for activation campaigns. Source: github_copilot_ai_adoption_phase_user_count{ai_adoption_phase='Explorer'}.",
+        "gridPos": { "h": 4, "w": 4, "x": 0, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"})", "legendFormat": "Explorers" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#F0954A" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" }
+      },
+      {
+        "id": 2, "type": "stat", "title": "Developer Count",
+        "description": "Users actively using at least one Copilot feature. Source: github_copilot_ai_adoption_phase_user_count{ai_adoption_phase='Developer'}.",
+        "gridPos": { "h": 4, "w": 4, "x": 4, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"})", "legendFormat": "Developers" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#3B82E6" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" }
+      },
+      {
+        "id": 3, "type": "stat", "title": "Power User Count",
+        "description": "Users meeting GitHub's sustained multi-feature engagement threshold. Source: github_copilot_ai_adoption_phase_user_count{ai_adoption_phase='Power User'}.",
+        "gridPos": { "h": 4, "w": 4, "x": 8, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"})", "legendFormat": "Power Users" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#5BA85B" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area", "textMode": "value_and_name" }
+      },
+      {
+        "id": 4, "type": "stat", "title": "Total Seats",
+        "description": "Total licensed Copilot seats. Source: github_copilot_enterprise_seat_total.",
+        "gridPos": { "h": 4, "w": 4, "x": 12, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"})", "legendFormat": "Total Seats" }],
+        "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "#9C5FE0" }, "unit": "short", "decimals": 0 } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 5, "type": "stat", "title": "7-Day Active Coverage",
+        "description": "Percentage of seats where the user was active in the last 7 days. Source: github_copilot_enterprise_seat_coverage_ratio_7d. Target: >60% for healthy adoption.",
+        "gridPos": { "h": 4, "w": 4, "x": 16, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "avg(github_copilot_enterprise_seat_coverage_ratio_7d{enterprise=\"$enterprise\"}) * 100", "legendFormat": "7d Coverage" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "#E0524A", "value": null }, { "color": "#F0954A", "value": 40 }, { "color": "#5BA85B", "value": 60 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      {
+        "id": 6, "type": "stat", "title": "Power User Rate",
+        "description": "Power Users as a percentage of all active users (Developer + Power User). A rising rate indicates your adoption programme is successfully deepening engagement beyond surface-level usage.",
+        "gridPos": { "h": 4, "w": 4, "x": 20, "y": 9 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "100 * sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}) / clamp_min(sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=~\"Developer|Power User\"}), 1)", "legendFormat": "Power User Rate" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "decimals": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "#E0524A", "value": null }, { "color": "#F0954A", "value": 20 }, { "color": "#5BA85B", "value": 40 }] } } },
+        "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" }
+      },
+      { "id": 201, "type": "row", "title": "Phase Distribution", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }, "collapsed": false },
+      {
+        "id": 10, "type": "piechart", "title": "Current Phase Distribution",
+        "description": "Snapshot of how all seated users are distributed across Explorer, Developer, and Power User phases today. A healthy org trends toward more Developer and Power User slices over time.",
+        "gridPos": { "h": 9, "w": 8, "x": 0, "y": 14 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "sum by (ai_adoption_phase) (github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\"})", "legendFormat": "{{ai_adoption_phase}}" }],
+        "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Explorer" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F0954A" } }] },
+          { "matcher": { "id": "byName", "options": "Developer" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82E6" } }] },
+          { "matcher": { "id": "byName", "options": "Power User" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "pieType": "donut", "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] } }
+      },
+      {
+        "id": 11, "type": "timeseries", "title": "Phase Population Over Time",
+        "description": "How the count of users in each adoption phase has changed over the selected window. Explorer declining + Developer/Power User rising = healthy adoption progression. A flat or rising Explorer line = activation problem.",
+        "gridPos": { "h": 9, "w": 16, "x": 8, "y": 14 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"})", "legendFormat": "Explorer" },
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"})", "legendFormat": "Developer" },
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"})", "legendFormat": "Power User" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Explorer" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F0954A" } }] },
+          { "matcher": { "id": "byName", "options": "Developer" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#3B82E6" } }] },
+          { "matcher": { "id": "byName", "options": "Power User" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 202, "type": "row", "title": "Activation Funnel", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }, "collapsed": false },
+      {
+        "id": 20, "type": "barchart", "title": "Seat Activation Funnel",
+        "description": "Seats \u2192 activated (ever used) \u2192 active 7d \u2192 active 28d \u2192 Power User. Each stage is a subset of the previous. The drop between Total Seats and Active 28d is your activation gap \u2014 unseated licences generating cost with no value.",
+        "gridPos": { "h": 9, "w": 24, "x": 0, "y": 24 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"})", "legendFormat": "Total Seats", "instant": true },
+          { "expr": "sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}) - sum(github_copilot_enterprise_seat_never_active{enterprise=\"$enterprise\"})", "legendFormat": "Ever Activated", "instant": true },
+          { "expr": "sum(github_copilot_daily_active_users{enterprise=\"$enterprise\"})", "legendFormat": "Active 7d", "instant": true },
+          { "expr": "sum(github_copilot_monthly_active_users{enterprise=\"$enterprise\"})", "legendFormat": "Active 28d", "instant": true },
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"})", "legendFormat": "Power Users", "instant": true }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+      },
+      { "id": 203, "type": "row", "title": "Cohort Migration", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 }, "collapsed": false },
+      {
+        "id": 30, "type": "timeseries", "title": "Weekly Phase Change (Explorer \u2192 Developer Net Flow)",
+        "description": "Weekly delta in Explorer count. A negative value means more users left Explorer phase (became Developer) than joined it that week. Sustained negative delta = your activation campaigns are working. Source: week-over-week difference in github_copilot_ai_adoption_phase_user_count{phase='Explorer'}.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"}) - sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"} offset 7d)", "legendFormat": "Explorer weekly delta (negative = activation)" },
+          { "expr": "sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}) - sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"} offset 7d)", "legendFormat": "Power User weekly delta (positive = deepening)" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } }, "overrides": [
+          { "matcher": { "id": "byName", "options": "Explorer weekly delta (negative = activation)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#F0954A" } }] },
+          { "matcher": { "id": "byName", "options": "Power User weekly delta (positive = deepening)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#5BA85B" } }] }
+        ] },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 31, "type": "timeseries", "title": "Phase Coverage Ratios Over Time",
+        "description": "Each phase as a percentage of total seats. Use this to track whether the composition is shifting toward higher engagement over time. Target state: Explorer <30%, Developer >40%, Power User >20%.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 34 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "100 * sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"}) / clamp_min(sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}), 1)", "legendFormat": "Explorer %" },
+          { "expr": "100 * sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"}) / clamp_min(sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}), 1)", "legendFormat": "Developer %" },
+          { "expr": "100 * sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}) / clamp_min(sum(github_copilot_enterprise_seat_total{enterprise=\"$enterprise\"}), 1)", "legendFormat": "Power User %" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "percent", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      { "id": 204, "type": "row", "title": "User Lists by Phase", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 }, "collapsed": false },
+      {
+        "id": 40, "type": "table", "title": "Explorers \u2014 Not Yet Activated (Outreach Targets)",
+        "description": "Users with a seat who have not yet used Copilot. These are the highest-value activation targets. user_login is their GitHub handle. Source: github_copilot_user_usage_ai_adoption_phase label where value='Explorer'. Contact these users with targeted enablement resources.",
+        "gridPos": { "h": 10, "w": 8, "x": 0, "y": 44 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "github_copilot_user_usage_ai_adoption_phase{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"}", "legendFormat": "{{user_login}}", "instant": true, "format": "table" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "user_login" }] },
+        "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "Value": true, "enterprise": true, "job": true }, "renameByName": { "user_login": "GitHub Username", "ai_adoption_phase": "Phase", "org": "Organisation" } } }]
+      },
+      {
+        "id": 41, "type": "table", "title": "Developers \u2014 Engaged Users",
+        "description": "Users actively using at least one Copilot feature. These users are strong candidates for deeper engagement campaigns (multi-feature adoption, agent workflows, MCP tools). Source: user_login where ai_adoption_phase='Developer'.",
+        "gridPos": { "h": 10, "w": 8, "x": 8, "y": 44 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "github_copilot_user_usage_ai_adoption_phase{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"}", "legendFormat": "{{user_login}}", "instant": true, "format": "table" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "user_login" }] },
+        "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "Value": true, "enterprise": true, "job": true }, "renameByName": { "user_login": "GitHub Username", "ai_adoption_phase": "Phase", "org": "Organisation" } } }]
+      },
+      {
+        "id": 42, "type": "table", "title": "Power Users \u2014 Champions",
+        "description": "Your most engaged Copilot users. These are ideal internal champions, peer-enablement candidates, and feedback sources. Consider giving them early access to new features. Source: user_login where ai_adoption_phase='Power User'.",
+        "gridPos": { "h": 10, "w": 8, "x": 16, "y": 44 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [{ "expr": "github_copilot_user_usage_ai_adoption_phase{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}", "legendFormat": "{{user_login}}", "instant": true, "format": "table" }],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "user_login" }] },
+        "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "Value": true, "enterprise": true, "job": true }, "renameByName": { "user_login": "GitHub Username", "ai_adoption_phase": "Phase", "org": "Organisation" } } }]
+      },
+      { "id": 205, "type": "row", "title": "Token Usage by Cohort", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 }, "collapsed": false },
+      {
+        "id": 50, "type": "timeseries", "title": "AI Credits Used \u2014 by Adoption Phase Over Time",
+        "description": "Premium AI credit consumption segmented by adoption phase. Power Users typically consume disproportionately more credits per user. This is expected \u2014 track it to ensure billing is attributable to the users driving the most value. Source: github_copilot_user_usage_ai_credits_used joined on ai_adoption_phase label.",
+        "gridPos": { "h": 9, "w": 12, "x": 0, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum by (ai_adoption_phase) (github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"})", "legendFormat": "Explorer" },
+          { "expr": "sum by (ai_adoption_phase) (github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"})", "legendFormat": "Developer" },
+          { "expr": "sum by (ai_adoption_phase) (github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"})", "legendFormat": "Power User" }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 15, "lineWidth": 2 } } },
+        "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+      },
+      {
+        "id": 51, "type": "barchart", "title": "Avg AI Credits per User \u2014 by Phase",
+        "description": "Average AI credits consumed per user within each adoption phase. This normalises for phase size \u2014 showing per-user intensity rather than raw totals. Power Users consuming 10x more per user than Developers is expected and healthy.",
+        "gridPos": { "h": 9, "w": 12, "x": 12, "y": 55 },
+        "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+        "targets": [
+          { "expr": "sum(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"}) / clamp_min(sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Explorer\"}), 1)", "legendFormat": "Explorer avg", "instant": true },
+          { "expr": "sum(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"}) / clamp_min(sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Developer\"}), 1)", "legendFormat": "Developer avg", "instant": true },
+          { "expr": "sum(github_copilot_user_usage_ai_credits_used{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}) / clamp_min(sum(github_copilot_ai_adoption_phase_user_count{enterprise=\"$enterprise\", ai_adoption_phase=\"Power User\"}), 1)", "legendFormat": "Power User avg", "instant": true }
+        ],
+        "fieldConfig": { "defaults": { "unit": "short" } },
+        "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "bottom" } }
+      }
+    ],
+    "annotations": { "list": [] },
+    "links": [
+      { "title": "User Self-Service", "url": "/d/copilot-user-selfservice", "icon": "external link", "type": "link" },
+      { "title": "Metrics Overview", "url": "/d/copilot-vm-metrics", "icon": "external link", "type": "link" }
+    ]
+  }
