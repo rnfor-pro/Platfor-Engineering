@@ -366,12 +366,18 @@ class GitHubClient:
             f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-1-day",
             {"day": day},
         )
+        if not isinstance(meta, dict):
+            logging.warning("fetch_enterprise_usage_day: unexpected response type=%s day=%s", type(meta).__name__, day)
+            return []
         return self.download_chunks(meta.get("download_links", []))
 
     def fetch_enterprise_usage_28d(self) -> List[Any]:
         meta = self._report_metadata(
             f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/enterprise-28-day/latest"
         )
+        if not isinstance(meta, dict):
+            logging.warning("fetch_enterprise_usage_28d: unexpected response type=%s", type(meta).__name__)
+            return []
         return self.download_chunks(meta.get("download_links", []))
 
     def fetch_users_usage_day(self, day: str) -> List[Any]:
@@ -379,12 +385,18 @@ class GitHubClient:
             f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-1-day",
             {"day": day},
         )
+        if not isinstance(meta, dict):
+            logging.warning("fetch_users_usage_day: unexpected response type=%s day=%s", type(meta).__name__, day)
+            return []
         return self.download_chunks(meta.get("download_links", []))
 
     def fetch_users_usage_28d(self) -> List[Any]:
         meta = self._report_metadata(
             f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/users-28-day/latest"
         )
+        if not isinstance(meta, dict):
+            logging.warning("fetch_users_usage_28d: unexpected response type=%s", type(meta).__name__)
+            return []
         return self.download_chunks(meta.get("download_links", []))
 
     def fetch_user_teams_day(self, day: str) -> List[Any]:
@@ -392,6 +404,9 @@ class GitHubClient:
             f"/enterprises/{self.settings.gh_enterprise}/copilot/metrics/reports/user-teams-1-day",
             {"day": day},
         )
+        if not isinstance(meta, dict):
+            logging.warning("fetch_user_teams_day: unexpected response type=%s day=%s", type(meta).__name__, day)
+            return []
         return self.download_chunks(meta.get("download_links", []))
 
     def fetch_enterprise_seats(self) -> Dict[str, Any]:
