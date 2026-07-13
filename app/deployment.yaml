@@ -1,0 +1,270 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-copilot-exporter
+  namespace: REPLACE_WITH_NAMESPACE
+  labels:
+    app: github-copilot-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-copilot-exporter
+  template:
+    metadata:
+      labels:
+        app: github-copilot-exporter
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: github-copilot-exporter
+          image: REPLACE_WITH_ARTIFACTORY_IMAGE
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            # ----------------------------------------------------------------
+            # GitHub authentication and enterprise identity
+            # ----------------------------------------------------------------
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: GH_TOKEN
+
+            - name: GH_ENTERPRISE
+              value: "REPLACE_WITH_ENTERPRISE_SLUG"
+
+            - name: GH_API_BASE
+              value: "https://api.github.com"
+
+            - name: GH_API_VERSION
+              value: "2026-03-10"
+
+            # ----------------------------------------------------------------
+            # Billing scope and org routing
+            # BILLING_SCOPE: "enterprise" (default) uses the enterprise-level
+            # billing endpoints. Set to "organization" to use org-level endpoints
+            # instead (requires GH_BILLING_ORGS to be set).
+            # GH_BILLING_ORGS: comma-separated org slugs. Used for org-filtered
+            # enterprise billing slices and org-scope billing fallback.
+            # GH_COST_CENTER_IDS: comma-separated cost center IDs for
+            # billing usage summary breakdown by cost center.
+            # ----------------------------------------------------------------
+            - name: BILLING_SCOPE
+              value: "enterprise"
+
+            - name: ENABLE_BILLING_REPORTS
+              value: "true"
+
+            - name: ENABLE_BILLING_USAGE_SUMMARY
+              value: "true"
+
+            - name: GH_BILLING_ORGS
+              value: ""
+
+            - name: GH_COST_CENTER_IDS
+              value: ""
+
+            # ----------------------------------------------------------------
+            # Collection timing
+            # DATA_LAG_DAYS: GitHub reports are available N days after the
+            # activity day. 2 is conservative and reliable.
+            # POLL_INTERVAL_SECONDS: 21600 = every 6 hours.
+            # Daily usage data is idempotent (exact-diff dedup). Seat
+            # snapshots refresh every cycle.
+            # ----------------------------------------------------------------
+            - name: DATA_LAG_DAYS
+              value: "2"
+
+            - name: POLL_INTERVAL_SECONDS
+              value: "21600"
+
+            # ----------------------------------------------------------------
+            # Bootstrap and backfill
+            # BOOTSTRAP_28D: set "true" on first deploy to load 28 days of
+            # history. Set back to "false" after the first cycle completes.
+            # FORCE_BOOTSTRAP: set "true" to re-run even if data exists.
+            # ENABLE_DATE_RANGE_BACKFILL: set "true" with START/END to
+            # fill a specific historical window. Resets after one run.
+            # ----------------------------------------------------------------
+            - name: BOOTSTRAP_28D
+              value: "false"
+
+            - name: FORCE_BOOTSTRAP
+              value: "false"
+
+            - name: ENABLE_DATE_RANGE_BACKFILL
+              value: "false"
+
+            - name: BACKFILL_START_DAY
+              value: ""
+
+            - name: BACKFILL_END_DAY
+              value: ""
+
+            # ----------------------------------------------------------------
+            # VictoriaMetrics
+            # VM_IMPORT_URL:  /api/v1/import endpoint (required)
+            # VM_EXPORT_URL:  /api/v1/export endpoint (required for exact-diff)
+            # VM_SERIES_URL:  /prometheus/api/v1/series (optional, legacy use)
+            # VM_DELETE_URL:  /api/v1/admin/tsdb/delete_series (optional,
+            #                 not used by the exporter directly but kept for
+            #                 operational tooling that shares this secret)
+            # ----------------------------------------------------------------
+            - name: VM_IMPORT_URL
+              value: "REPLACE_WITH_VM_IMPORT_URL"
+
+            - name: VM_EXPORT_URL
+              value: "REPLACE_WITH_VM_EXPORT_URL"
+
+            - name: VM_SERIES_URL
+              value: "REPLACE_WITH_VM_SERIES_URL"
+
+            - name: VM_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_USERNAME
+                  optional: true
+
+            - name: VM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_PASSWORD
+                  optional: true
+
+            - name: VM_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-copilot-exporter-secret
+                  key: VM_BEARER_TOKEN
+                  optional: true
+
+            # ----------------------------------------------------------------
+            # Exact-diff engine controls
+            # EXACT_DIFF_ENABLED: "true" (default) reads existing data from
+            # VM_EXPORT_URL before writing, only writing missing or drifted
+            # points. Set "false" to always write all points (faster but
+            # may cause duplicate writes after restarts).
+            # DRIFT_POLICY: "skip" (default) ignores drifted values.
+            #               "rewrite" re-writes points whose value changed.
+            # DRY_RUN: "true" logs what would be written but writes nothing
+            # to VictoriaMetrics. Loki still runs (has its own dedup).
+            # ----------------------------------------------------------------
+            - name: EXACT_DIFF_ENABLED
+              value: "true"
+
+            - name: DRIFT_POLICY
+              value: "skip"
+
+            - name: DRY_RUN
+              value: "false"
+
+            # ----------------------------------------------------------------
+            # Loki output (NEW in this version)
+            # Set LOKI_ENDPOINT to enable. Leave empty to disable entirely.
+            # When enabled, the exporter pushes one structured JSON log line
+            # per user per day to Loki after each successful VM write.
+            # Loki failure does NOT fail the exporter cycle — it is logged
+            # and counted in github_copilot_exporter_loki_push_errors_total.
+            #
+            # LOKI_ENDPOINT:   full push URL
+            #                  e.g. http://loki:3100/loki/api/v1/push
+            # LOKI_QUERY_URL:  base URL for dedup check
+            #                  e.g. http://loki:3100
+            #                  Auto-derived from LOKI_ENDPOINT if not set.
+            # LOKI_TENANT_ID:  X-Scope-OrgID header for multi-tenant Loki.
+            #                  Leave empty for single-tenant deployments.
+            # LOKI_BATCH_SIZE: users per HTTP POST. Default 100. Reduce if
+            #                  you hit Loki request body size limits.
+            # LOKI_TIMEOUT_SEC: HTTP timeout for Loki requests. Default 30.
+            # DEPLOYMENT_ENV:  stamped as a label on every Loki log line.
+            #                  Allows dashboard filtering by environment.
+            # ----------------------------------------------------------------
+            - name: LOKI_ENDPOINT
+              value: "REPLACE_WITH_LOKI_ENDPOINT"
+
+            - name: LOKI_QUERY_URL
+              value: "REPLACE_WITH_LOKI_QUERY_URL"
+
+            - name: LOKI_TENANT_ID
+              value: ""
+
+            - name: LOKI_BATCH_SIZE
+              value: "100"
+
+            - name: LOKI_TIMEOUT_SEC
+              value: "30"
+
+            - name: DEPLOYMENT_ENV
+              value: "prod"
+
+            # ----------------------------------------------------------------
+            # Runtime
+            # ----------------------------------------------------------------
+            - name: EXPORTER_PORT
+              value: "8080"
+
+            - name: LOG_LEVEL
+              value: "INFO"
+
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/certs/ca-certificates.crt
+
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-copilot-exporter
+  namespace: REPLACE_WITH_NAMESPACE
+  labels:
+    app: github-copilot-exporter
+spec:
+  selector:
+    app: github-copilot-exporter
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
