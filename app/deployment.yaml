@@ -201,7 +201,7 @@ spec:
               value: "30"
 
             - name: DEPLOYMENT_ENV
-              value: "prod"
+              value: ""    # set to dev / nonprod / prod per environment deployment
 
             # ----------------------------------------------------------------
             # Runtime
