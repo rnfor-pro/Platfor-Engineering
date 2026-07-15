@@ -152,3 +152,68 @@ curl -X POST "http://localhost:8428/internal/force_merge?partition_prefix=small"
 ```
 
 The port-forward in Terminal 1 must stay open the entire time you are running the commands in Terminal 2.
+
+
+
+
+
+
+
+
+================================
+
+**Confirm the backfill completed successfully first, then we proceed.**
+
+Run these three checks in order:
+
+**Check 1 — confirm backfill wrote new data with schema_version:**
+```bash
+curl -s "http://localhost:8428/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot.*", enterprise="sherwin-williams", schema_version="2026-06-exact-diff-v1"}' \
+  --data-urlencode 'start=-90d' \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'New series with schema_version: {len(d[\"data\"])}')"
+```
+
+**Check 2 — confirm no old series crept back:**
+```bash
+curl -s "http://localhost:8428/prometheus/api/v1/series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot.*|github_billing.*", enterprise="sherwin-williams", schema_version=""}' \
+  --data-urlencode 'start=-90d' \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Old series without schema_version: {len(d[\"data\"])} (should be 0)')"
+```
+
+**Check 3 — confirm a specific key metric has data:**
+```bash
+curl -s "http://localhost:8428/api/v1/query?query=github_copilot_daily_active_users%7Benterprise%3D%22sherwin-williams%22%7D" \
+  | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+results = d.get('data',{}).get('result',[])
+print(f'Daily active users series count: {len(results)}')
+for r in results[:3]:
+    print(f'  labels={r[\"metric\"]} value={r[\"value\"][1]}')
+"
+```
+
+**What the results should look like:**
+- Check 1: a large number (tens of thousands) — all your 90-day data
+- Check 2: 0 or very close to 0
+- Check 3: exactly **1 series** with `schema_version="2026-06-exact-diff-v1"` — no duplicates
+
+**If all three checks pass**, here is what to do next:
+
+1. **Set backfill back to false** in the manifest and redeploy:
+```yaml
+- name: ENABLE_DATE_RANGE_BACKFILL
+  value: "false"
+```
+```bash
+kubectl apply -f github-copilot-exporter-manifest.yaml -n np-keystone
+kubectl rollout restart -n np-keystone deploy/github-copilot-exporter
+```
+
+2. **Import the updated dashboards** into Grafana — all four files are ready and waiting. The duplicate panel issue should now be resolved since there is only one label set in VictoriaMetrics.
+
+3. **Come back and confirm** the panels are showing single values — then I will proceed with the remaining dashboard changes we planned (dynamic time ranges, nav links, sort_desc on bargauge queries, removing Active Days panel).
+
+Share the output of the three checks and we go from there.
