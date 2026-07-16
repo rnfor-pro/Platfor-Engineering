@@ -1,0 +1,146 @@
+{
+  "__inputs": [{"name":"DS_LOKI","label":"Loki","type":"datasource","pluginId":"loki"}],
+  "__requires": [
+    {"type":"grafana","id":"grafana","name":"Grafana","version":"12.0.0"},
+    {"type":"datasource","id":"loki","name":"Loki","version":"1.0.0"},
+    {"type":"panel","id":"table","name":"Table","version":""},
+    {"type":"panel","id":"stat","name":"Stat","version":""},
+    {"type":"panel","id":"timeseries","name":"Time series","version":""},
+    {"type":"panel","id":"text","name":"Text","version":""}
+  ],
+  "uid": "copilot-loki-behaviour-patterns",
+  "title": "Copilot — Adoption Behaviour Patterns",
+  "description": "Correlates actual usage behaviour with AI adoption phase. Surfaces users on the cusp of phase graduation and explains behavioural differences between phases.",
+  "tags": ["copilot","loki","behaviour","adoption","phase"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1h",
+  "time": {"from": "now-28d", "to": "now"},
+  "graphTooltip": 1,
+  "templating": {"list": [
+    {"name": "enterprise", "type": "constant", "value": "sherwin-williams", "hide": 2}
+  ]},
+  "panels": [
+    {
+      "id": 1, "type": "text", "title": "About This Dashboard",
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+      "options": {"mode": "markdown", "content": "## Copilot Adoption Behaviour Patterns\n\nThis dashboard uses Loki structured log data to explain the behavioural differences between AI adoption phases and surface users who are ready to graduate to the next phase.\n\n**Phase graduation signals:**\n\n| From | To | Signal to look for |\n|---|---|---|\n| No Cohort | Phase 1 | First day with prompt_count > 0 |\n| Phase 1 | Phase 2 | First day with used_agent=true |\n| Phase 2 | Phase 3 | Days with used_agent=true AND used_cli=true |\n\n**Key questions answered:**\n- Which No Cohort users sent their first prompt this week?\n- Which Phase 1 users used agent for the first time?\n- Which users are showing Phase 3 behaviours but are still classified as Phase 2?\n- How do prompt counts and LOC differ across phases?\n\n**Data source:** Loki `ai_adoption_phase`, `used_agent`, `used_chat`, `used_cli` fields — 28-day query window maximum."}
+    },
+    {
+      "id": 100, "type": "row", "title": "Phase Graduation Signals", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6}, "collapsed": false
+    },
+    {
+      "id": 2, "type": "stat", "title": "No Cohort Users Who Sent First Prompt (7d)",
+      "description": "Users classified as No Cohort who sent at least one prompt in the last 7 days. These users may be graduating to Phase 1 — follow up to confirm engagement is sustained.",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 7},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"No Cohort\"} | json | prompt_count > 0 [7d])))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#EAB308"}, "unit": "short", "decimals": 0}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"}
+    },
+    {
+      "id": 3, "type": "stat", "title": "Phase 1 Users Who Used Agent (7d)",
+      "description": "Phase 1 users who used agent features at least once in the last 7 days. These are strong Phase 2 candidates — sustained agent usage signals readiness for the next phase.",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 7},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 1\"} | json | used_agent=\"true\" [7d])))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#F97316"}, "unit": "short", "decimals": 0}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"}
+    },
+    {
+      "id": 4, "type": "stat", "title": "Phase 2 Users Using Agent + CLI (7d)",
+      "description": "Phase 2 users who used both agent and CLI features in the last 7 days. Using multiple GitHub-based agent surfaces is the Phase 3 criteria — these users may be ready to graduate.",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 7},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 2\"} | json | used_agent=\"true\" | used_cli=\"true\" [7d])))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#3B82F6"}, "unit": "short", "decimals": 0}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"}
+    },
+    {
+      "id": 5, "type": "stat", "title": "Phase 3 Consistent Users (7d)",
+      "description": "Phase 3 users who used agent features every day for the last 7 days. These are the most consistent power users and strongest candidates for internal champion and peer enablement roles.",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 7},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 3\"} | json | used_agent=\"true\" [7d])) >= 5)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "#93C5FD"}, "unit": "short", "decimals": 0}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none", "textMode": "value_and_name"}
+    },
+    {
+      "id": 101, "type": "row", "title": "Behaviour Trends by Phase", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 11}, "collapsed": false
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Daily Agent Usage by Phase",
+      "description": "How many users in each phase used agent features each day. Phase 1 users using agent is the key graduation signal. Growing agent usage across all phases indicates deepening adoption.",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 12},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [
+        {"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 1\"} | json | used_agent=\"true\" [1d])))", "legendFormat": "Phase 1 — Agent Users", "refId": "A"},
+        {"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 2\"} | json | used_agent=\"true\" [1d])))", "legendFormat": "Phase 2 — Agent Users", "refId": "B"},
+        {"expr": "count(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 3\"} | json | used_agent=\"true\" [1d])))", "legendFormat": "Phase 3 — Agent Users", "refId": "C"}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "custom": {"fillOpacity": 75, "lineWidth": 2}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Phase 1 — Agent Users"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "#F97316"}}]},
+          {"matcher": {"id": "byName", "options": "Phase 2 — Agent Users"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "#3B82F6"}}]},
+          {"matcher": {"id": "byName", "options": "Phase 3 — Agent Users"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "#93C5FD"}}]}
+        ]
+      },
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 102, "type": "row", "title": "Graduation Candidate Lists", "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21}, "collapsed": false
+    },
+    {
+      "id": 7, "type": "table", "title": "No Cohort → Phase 1 Candidates (Sent Prompts in Last 7d)",
+      "description": "No Cohort users who sent at least one prompt in the last 7 days. These users are beginning to engage with Copilot and may graduate to Phase 1 if engagement is sustained. Reach out to these users with onboarding resources to encourage continued use.",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 22},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "sort_desc(sum by (user_login) (sum_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"No Cohort\"} | json | unwrap prompt_count [7d])))", "refId": "A", "instant": true}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "user_login"}, "properties": [{"id": "displayName", "value": "Username"}]},
+          {"matcher": {"id": "byName", "options": "Value"}, "properties": [{"id": "displayName", "value": "Prompts (7d)"}]}
+        ]},
+      "options": {"showHeader": true, "sortBy": [{"desc": true, "displayName": "Prompts (7d)"}]},
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true}, "renameByName": {"user_login": "Username", "Value": "Prompts (7d)"}}}]
+    },
+    {
+      "id": 8, "type": "table", "title": "Phase 1 → Phase 2 Candidates (Used Agent in Last 7d)",
+      "description": "Phase 1 users who used agent features at least once in the last 7 days. These are ready for Phase 2 progression. Share guidance on GitHub-based agent surfaces — cloud agent, code review, and CLI — to deepen their engagement.",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 22},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "sort_desc(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 1\"} | json | used_agent=\"true\" [7d])))", "refId": "A", "instant": true}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "user_login"}, "properties": [{"id": "displayName", "value": "Username"}]},
+          {"matcher": {"id": "byName", "options": "Value"}, "properties": [{"id": "displayName", "value": "Agent Active Days (7d)"}]}
+        ]},
+      "options": {"showHeader": true, "sortBy": [{"desc": true, "displayName": "Agent Active Days (7d)"}]},
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true}, "renameByName": {"user_login": "Username", "Value": "Agent Active Days (7d)"}}}]
+    },
+    {
+      "id": 9, "type": "table", "title": "Phase 2 → Phase 3 Candidates (Agent + CLI in Last 7d)",
+      "description": "Phase 2 users showing Phase 3 behaviour — using both agent and CLI features in the last 7 days. Using two or more GitHub-based agent surfaces is the Phase 3 graduation criteria. These users may already qualify for Phase 3 on the next GitHub classification cycle.",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 32},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "sort_desc(sum by (user_login) (count_over_time({enterprise=\"$enterprise\", log_source=\"copilot_exporter\", ai_adoption_phase=\"Phase 2\"} | json | used_agent=\"true\" | used_cli=\"true\" [7d])))", "refId": "A", "instant": true}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "user_login"}, "properties": [{"id": "displayName", "value": "Username"}]},
+          {"matcher": {"id": "byName", "options": "Value"}, "properties": [{"id": "displayName", "value": "Multi-Surface Days (7d)"}]}
+        ]},
+      "options": {"showHeader": true, "sortBy": [{"desc": true, "displayName": "Multi-Surface Days (7d)"}]},
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true}, "renameByName": {"user_login": "Username", "Value": "Multi-Surface Days (7d)"}}}]
+    }
+  ],
+  "links": [
+    {"title": "Enterprise Overview", "url": "/d/copilot-enterprise-overview", "type": "link", "targetBlank": false},
+    {"title": "Cohorts", "url": "/d/copilot-cohort-user-attribution", "type": "link", "targetBlank": false},
+    {"title": "Activity Feed", "url": "/d/copilot-loki-activity-feed", "type": "link", "targetBlank": false},
+    {"title": "Model Intelligence", "url": "/d/copilot-loki-model-intelligence", "type": "link", "targetBlank": false},
+    {"title": "Spend Intelligence", "url": "/d/copilot-loki-spend-intelligence", "type": "link", "targetBlank": false},
+    {"title": "IDE Compliance", "url": "/d/copilot-loki-ide-compliance", "type": "link", "targetBlank": false}
+  ]
+}
