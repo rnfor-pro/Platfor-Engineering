@@ -132,3 +132,45 @@ For each step tell me:
 - For step 10 — the approximate user count number
 
 That tells me exactly which of the 5 dashboards I described are buildable with your current data.
+
+
+
+
+
+=============================================================
+
+Expected. The Loki LogQL metric queries (the `sum_over_time`, `count_over_time` with `unwrap`) are the most likely cause. Let me diagnose exactly which query type is failing before changing anything.
+
+Run these four test queries in Grafana Explore on your **Loki datasource** with **Last 28 days** time range:
+
+**Test 1 — Basic log query (confirmed working from earlier):**
+```logql
+{enterprise="sherwin-williams", log_source="copilot_exporter"} | json
+```
+Expected: log lines appear.
+
+**Test 2 — Count over time (needed for stat panels):**
+```logql
+count(sum by (user_login) (count_over_time({enterprise="sherwin-williams", log_source="copilot_exporter"} | json [28d])))
+```
+Expected: a single number.
+
+**Test 3 — Unwrap metric query (needed for sum panels):**
+```logql
+sum(sum_over_time({enterprise="sherwin-williams", log_source="copilot_exporter"} | json | unwrap prompt_count [28d]))
+```
+Expected: a single number representing total prompts.
+
+**Test 4 — Instant topk table query (needed for table panels):**
+```logql
+topk(5, sum by (user_login) (sum_over_time({enterprise="sherwin-williams", log_source="copilot_exporter"} | json | unwrap prompt_count [28d])))
+```
+Expected: 5 rows with user_login and value.
+
+**Test 5 — Boolean filter (needed for feature panels):**
+```logql
+count(sum by (user_login) (count_over_time({enterprise="sherwin-williams", log_source="copilot_exporter"} | json | used_agent="true" [28d])))
+```
+Expected: a number of users who used agent.
+
+Tell me which tests pass and which fail with the exact error message. That tells me exactly which query pattern to fix across all five dashboards.
