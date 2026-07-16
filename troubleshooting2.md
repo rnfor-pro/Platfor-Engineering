@@ -556,3 +556,13 @@ Add a Grafana alert on the exporter's own health metric — this is what `LAST_S
 ```
 
 That would have fired within 8 hours of June 9th's first failed cycle and told someone the exporter was silently dead — rather than discovering a 9-day gap a week later from a dashboard screenshot.
+
+
+=======================================
+
+
+Before the backfill, delete the old corrupted ai_adoption_phase series:
+```bash
+curl -X POST "http://localhost:8428/api/v1/admin/tsdb/delete_series" \
+  --data-urlencode 'match[]={__name__=~"github_copilot.*ai_adoption_phase.*", enterprise="sherwin-williams"}'
+  ```
