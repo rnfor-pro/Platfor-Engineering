@@ -284,3 +284,22 @@ for r in d['data']['result']:
 print(f'  TOTAL: {total}')
 "
 ```
+
+#Check what phase-related metrics actually exist in this VM right now:
+curl 'http://localhost:8428/api/v1/label/__name__/values' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for n in sorted(d['data']):
+    if 'phase' in n or 'adoption' in n or 'cohort' in n:
+        print(n)
+"
+
+#Then check what enterprise label values exist:
+curl 'http://localhost:8428/api/v1/label/enterprise/values' \
+  | python3 -m json.tool
+
+#And check the actual labels on the metric if it exists:
+curl -G 'http://localhost:8428/api/v1/series' \
+  --data-urlencode 'match[]={__name__="github_copilot_ai_adoption_phase_user_count"}' \
+  | python3 -m json.tool  
