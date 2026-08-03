@@ -244,3 +244,16 @@ print(f'Copilot metric names: {len(copilot)}')
 for n in copilot[:10]:
     print(f'  {n}')
 "
+# Check what is actually in VM right now:
+curl 'http://localhost:8428/api/v1/label/__name__/values' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for n in sorted(d['data']):
+    if 'phase' in n or 'cohort' in n:
+        print(n)
+"
+
+# And check what the backfill log shows for cohort_rollups specifically:
+kubectl logs -n dev-keystone deployment/github-copilot-exporter --tail=200 | \
+  grep -E "cohort_rollup|enterprise_had_cohort|Skipping cohort"
