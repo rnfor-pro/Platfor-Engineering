@@ -257,3 +257,30 @@ for n in sorted(d['data']):
 # And check what the backfill log shows for cohort_rollups specifically:
 kubectl logs -n dev-keystone deployment/github-copilot-exporter --tail=200 | \
   grep -E "cohort_rollup|enterprise_had_cohort|Skipping cohort"
+
+
+# Verify
+The correct service is `dev-victoriametrics-victoria-metrics-single-server` in namespace `dev-keystone`. Kill your current port-forward and run:
+
+```bash
+kubectl port-forward -n dev-keystone \
+  svc/dev-victoriametrics-victoria-metrics-single-server 8428:8428
+```
+
+Then verify the data is there:
+
+```bash
+curl -G 'http://localhost:8428/api/v1/query' \
+  --data-urlencode 'query=github_copilot_ai_adoption_phase_user_count{enterprise="sherwin-williams"}' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+total = 0
+for r in d['data']['result']:
+    phase = r['metric'].get('ai_adoption_phase', '?')
+    val = float(r['value'][1])
+    total += val
+    print(f'  {phase}: {val}')
+print(f'  TOTAL: {total}')
+"
+```
