@@ -230,3 +230,17 @@ echo ""
 echo "============================================================"
 echo " Cleanup complete."
 echo "============================================================"
+
+
+# Check if anything at all exists in this VM
+curl 'http://localhost:8428/api/v1/label/__name__/values' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+names = d.get('data', [])
+copilot = [n for n in names if 'copilot' in n]
+print(f'Total metric names: {len(names)}')
+print(f'Copilot metric names: {len(copilot)}')
+for n in copilot[:10]:
+    print(f'  {n}')
+"
