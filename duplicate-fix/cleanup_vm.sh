@@ -303,3 +303,19 @@ curl 'http://localhost:8428/api/v1/label/enterprise/values' \
 curl -G 'http://localhost:8428/api/v1/series' \
   --data-urlencode 'match[]={__name__="github_copilot_ai_adoption_phase_user_count"}' \
   | python3 -m json.tool  
+
+#prometheus path
+curl -G 'http://localhost:8428/api/v1/series' \
+  --data-urlencode 'match[]={__name__=~"github_copilot.*"}' \
+  --data-urlencode 'start=2026-03-01T00:00:00Z' \
+  --data-urlencode 'end=2026-08-03T23:59:59Z' \
+  -o series_check.json
+
+python3 -c "
+import json
+d = json.load(open('series_check.json'))
+names = sorted(set(r['__name__'] for r in d.get('data', [])))
+print(f'Total distinct metric names: {len(names)}')
+for n in names:
+    print(f'  {n}')
+"  
