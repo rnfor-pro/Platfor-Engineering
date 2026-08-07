@@ -232,124 +232,217 @@ echo " Cleanup complete."
 echo "============================================================"
 
 
-# Check if anything at all exists in this VM
-curl 'http://localhost:8428/api/v1/label/__name__/values' \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-names = d.get('data', [])
-copilot = [n for n in names if 'copilot' in n]
-print(f'Total metric names: {len(names)}')
-print(f'Copilot metric names: {len(copilot)}')
-for n in copilot[:10]:
-    print(f'  {n}')
-"
-# Check what is actually in VM right now:
-curl 'http://localhost:8428/api/v1/label/__name__/values' \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for n in sorted(d['data']):
-    if 'phase' in n or 'cohort' in n:
-        print(n)
-"
+# # Check if anything at all exists in this VM
+# curl 'http://localhost:8428/api/v1/label/__name__/values' \
+#   | python3 -c "
+# import json, sys
+# d = json.load(sys.stdin)
+# names = d.get('data', [])
+# copilot = [n for n in names if 'copilot' in n]
+# print(f'Total metric names: {len(names)}')
+# print(f'Copilot metric names: {len(copilot)}')
+# for n in copilot[:10]:
+#     print(f'  {n}')
+# "
+# # Check what is actually in VM right now:
+# curl 'http://localhost:8428/api/v1/label/__name__/values' \
+#   | python3 -c "
+# import json, sys
+# d = json.load(sys.stdin)
+# for n in sorted(d['data']):
+#     if 'phase' in n or 'cohort' in n:
+#         print(n)
+# "
 
-# And check what the backfill log shows for cohort_rollups specifically:
-kubectl logs -n dev-keystone deployment/github-copilot-exporter --tail=200 | \
-  grep -E "cohort_rollup|enterprise_had_cohort|Skipping cohort"
+# # And check what the backfill log shows for cohort_rollups specifically:
+# kubectl logs -n dev-keystone deployment/github-copilot-exporter --tail=200 | \
+#   grep -E "cohort_rollup|enterprise_had_cohort|Skipping cohort"
 
 
-# Verify
-The correct service is `dev-victoriametrics-victoria-metrics-single-server` in namespace `dev-keystone`. Kill your current port-forward and run:
+# # Verify
+# The correct service is `dev-victoriametrics-victoria-metrics-single-server` in namespace `dev-keystone`. Kill your current port-forward and run:
 
+# ```bash
+# kubectl port-forward -n dev-keystone \
+#   svc/dev-victoriametrics-victoria-metrics-single-server 8428:8428
+# ```
+
+# Then verify the data is there:
+
+# ```bash
+# curl -G 'http://localhost:8428/api/v1/query' \
+#   --data-urlencode 'query=github_copilot_ai_adoption_phase_user_count{enterprise="sherwin-williams"}' \
+#   | python3 -c "
+# import json, sys
+# d = json.load(sys.stdin)
+# total = 0
+# for r in d['data']['result']:
+#     phase = r['metric'].get('ai_adoption_phase', '?')
+#     val = float(r['value'][1])
+#     total += val
+#     print(f'  {phase}: {val}')
+# print(f'  TOTAL: {total}')
+# "
+# ```
+
+# #Check what phase-related metrics actually exist in this VM right now:
+# curl 'http://localhost:8428/api/v1/label/__name__/values' \
+#   | python3 -c "
+# import json, sys
+# d = json.load(sys.stdin)
+# for n in sorted(d['data']):
+#     if 'phase' in n or 'adoption' in n or 'cohort' in n:
+#         print(n)
+# "
+
+# #Then check what enterprise label values exist:
+# curl 'http://localhost:8428/api/v1/label/enterprise/values' \
+#   | python3 -m json.tool
+
+# #And check the actual labels on the metric if it exists:
+# curl -G 'http://localhost:8428/api/v1/series' \
+#   --data-urlencode 'match[]={__name__="github_copilot_ai_adoption_phase_user_count"}' \
+#   | python3 -m json.tool  
+
+# #prometheus path
+# curl -G 'http://localhost:8428/api/v1/series' \
+#   --data-urlencode 'match[]={__name__=~"github_copilot.*"}' \
+#   --data-urlencode 'start=2026-03-01T00:00:00Z' \
+#   --data-urlencode 'end=2026-08-03T23:59:59Z' \
+#   -o series_check.json
+
+# python3 -c "
+# import json
+# d = json.load(open('series_check.json'))
+# names = sorted(set(r['__name__'] for r in d.get('data', [])))
+# print(f'Total distinct metric names: {len(names)}')
+# for n in names:
+#     print(f'  {n}')
+# "  
+
+# #Raw API curl to confirm field names
+# #First grab the token from the pod:
+# GH_TOKEN=$(kubectl exec -n dev-keystone deployment/github-copilot-exporter \
+#   -- env | grep ^GH_TOKEN= | cut -d= -f2)
+
+# #Then call the API for a recent post-May-29 day so totals_by_ai_adoption_phase should be present:  
+# curl -s \
+#   -H "Authorization: Bearer $GH_TOKEN" \
+#   -H "Accept: application/vnd.github+json" \
+#   -H "X-GitHub-Api-Version: 2022-11-28" \
+#   "https://api.github.com/enterprises/sherwin-williams/copilot/metrics/reports/enterprise-1-day?day=2026-07-15" \
+#   -o api_response.json
+
+# python3 -c "
+# import json
+# d = json.load(open('api_response.json'))
+# rows = d if isinstance(d, list) else [d]
+# row = rows[0] if rows else {}
+# print('day:', row.get('day'))
+# print()
+# cohorts = row.get('totals_by_ai_adoption_phase')
+# if cohorts:
+#     print('totals_by_ai_adoption_phase found -- entry count:', len(cohorts))
+#     print('First entry raw:')
+#     print(json.dumps(cohorts[0], indent=2))
+#     print()
+#     print('All phase label values:')
+#     for c in cohorts:
+#         print(' ', repr(c.get('ai_adoption_phase')), '-> user_count:', c.get('user_count'))
+# else:
+#     print('totals_by_ai_adoption_phase: NOT PRESENT or empty')
+#     print('Top-level keys in response row:', list(row.keys()))
+# "
+
+======================================================================================
+Understood. Clean slate for all Copilot metrics, then fresh import with the v3 exporter. Here are the commands:
+#Step 1 — Port-forward to non-prod VM
+
+kubectl port-forward -n np-keystone \
+  svc/np-victoriametrics-victoria-metrics-single-server 8428:8428
+## Step 1 — Back up everything first
 ```bash
-kubectl port-forward -n dev-keystone \
-  svc/dev-victoriametrics-victoria-metrics-single-server 8428:8428
-```
-
-Then verify the data is there:
-
-```bash
-curl -G 'http://localhost:8428/api/v1/query' \
-  --data-urlencode 'query=github_copilot_ai_adoption_phase_user_count{enterprise="sherwin-williams"}' \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-total = 0
-for r in d['data']['result']:
-    phase = r['metric'].get('ai_adoption_phase', '?')
-    val = float(r['value'][1])
-    total += val
-    print(f'  {phase}: {val}')
-print(f'  TOTAL: {total}')
-"
-```
-
-#Check what phase-related metrics actually exist in this VM right now:
-curl 'http://localhost:8428/api/v1/label/__name__/values' \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for n in sorted(d['data']):
-    if 'phase' in n or 'adoption' in n or 'cohort' in n:
-        print(n)
-"
-
-#Then check what enterprise label values exist:
-curl 'http://localhost:8428/api/v1/label/enterprise/values' \
-  | python3 -m json.tool
-
-#And check the actual labels on the metric if it exists:
-curl -G 'http://localhost:8428/api/v1/series' \
-  --data-urlencode 'match[]={__name__="github_copilot_ai_adoption_phase_user_count"}' \
-  | python3 -m json.tool  
-
-#prometheus path
-curl -G 'http://localhost:8428/api/v1/series' \
+curl -G 'http://localhost:8428/api/v1/export' \
   --data-urlencode 'match[]={__name__=~"github_copilot.*"}' \
-  --data-urlencode 'start=2026-03-01T00:00:00Z' \
-  --data-urlencode 'end=2026-08-03T23:59:59Z' \
-  -o series_check.json
+  --data-urlencode 'start=2026-05-09T00:00:00Z' \
+  --data-urlencode 'end=2026-08-07T23:59:59Z' \
+  > np_copilot_full_backup_$(date +%Y%m%d).jsonl
 
-python3 -c "
-import json
-d = json.load(open('series_check.json'))
-names = sorted(set(r['__name__'] for r in d.get('data', [])))
-print(f'Total distinct metric names: {len(names)}')
-for n in names:
+echo "Backup lines: $(wc -l < np_copilot_full_backup_$(date +%Y%m%d).jsonl)"
+```
+
+## Step 2 — Delete ALL github_copilot_* metrics
+```bash
+# Delete all copilot metrics
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~"github_copilot.*"}'
+
+# Delete all github_billing metrics written by the exporter
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~"github_billing.*"}'
+
+# Force deletion to disk immediately
+curl http://localhost:8428/internal/force_merge
+
+echo "Deletion complete"
+```
+
+## Step 3 — Verify VM is clean
+```bash
+curl 'http://localhost:8428/api/v1/label/__name__/values' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+copilot = [n for n in d['data'] if 'copilot' in n or 'github_billing' in n]
+print(f'Remaining copilot metrics: {len(copilot)}')
+for n in copilot:
     print(f'  {n}')
-"  
-
-#Raw API curl to confirm field names
-#First grab the token from the pod:
-GH_TOKEN=$(kubectl exec -n dev-keystone deployment/github-copilot-exporter \
-  -- env | grep ^GH_TOKEN= | cut -d= -f2)
-
-#Then call the API for a recent post-May-29 day so totals_by_ai_adoption_phase should be present:  
-curl -s \
-  -H "Authorization: Bearer $GH_TOKEN" \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  "https://api.github.com/enterprises/sherwin-williams/copilot/metrics/reports/enterprise-1-day?day=2026-07-15" \
-  -o api_response.json
-
-python3 -c "
-import json
-d = json.load(open('api_response.json'))
-rows = d if isinstance(d, list) else [d]
-row = rows[0] if rows else {}
-print('day:', row.get('day'))
-print()
-cohorts = row.get('totals_by_ai_adoption_phase')
-if cohorts:
-    print('totals_by_ai_adoption_phase found -- entry count:', len(cohorts))
-    print('First entry raw:')
-    print(json.dumps(cohorts[0], indent=2))
-    print()
-    print('All phase label values:')
-    for c in cohorts:
-        print(' ', repr(c.get('ai_adoption_phase')), '-> user_count:', c.get('user_count'))
-else:
-    print('totals_by_ai_adoption_phase: NOT PRESENT or empty')
-    print('Top-level keys in response row:', list(row.keys()))
+if not copilot:
+    print('Clean -- no copilot metrics remain')
 "
+```
+
+## Step 4 — Deploy v3 exporter to non-prod
+```bash
+kubectl apply -f 02-deployment.yaml -n np-keystone \
+  --server-side --force-conflicts
+```
+
+## Step 5 — Set backfill env vars
+```yaml
+- name: ENABLE_DATE_RANGE_BACKFILL
+  value: "true"
+- name: BACKFILL_START_DAY
+  value: "2026-05-09"
+- name: BACKFILL_END_DAY
+  value: "2026-08-05"
+```
+
+Apply and restart the pod:
+```bash
+kubectl rollout restart deployment/github-copilot-exporter -n np-keystone
+```
+
+## Step 6 — Watch the backfill
+```bash
+kubectl logs -n np-keystone deployment/github-copilot-exporter -f | \
+  grep -E "Imported|Completed|ERROR|failed|cohort_gate"
+```
+
+## Step 7 — Disable backfill after completion
+Once you see `Completed exact-diff date-range backfill` in the logs, update the deployment:
+```yaml
+- name: ENABLE_DATE_RANGE_BACKFILL
+  value: "false"
+- name: BACKFILL_START_DAY
+  value: ""
+- name: BACKFILL_END_DAY
+  value: ""
+```
+
+```bash
+kubectl apply -f 02-deployment.yaml -n np-keystone \
+  --server-side --force-conflicts
+```
+
+That is the complete sequence — full wipe, fresh v3 import, backfill disabled after completion. Do the same for prod when non-prod is confirmed clean and correct.
