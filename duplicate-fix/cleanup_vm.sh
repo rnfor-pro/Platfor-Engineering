@@ -319,3 +319,37 @@ print(f'Total distinct metric names: {len(names)}')
 for n in names:
     print(f'  {n}')
 "  
+
+#Raw API curl to confirm field names
+#First grab the token from the pod:
+GH_TOKEN=$(kubectl exec -n dev-keystone deployment/github-copilot-exporter \
+  -- env | grep ^GH_TOKEN= | cut -d= -f2)
+
+#Then call the API for a recent post-May-29 day so totals_by_ai_adoption_phase should be present:  
+curl -s \
+  -H "Authorization: Bearer $GH_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  "https://api.github.com/enterprises/sherwin-williams/copilot/metrics/reports/enterprise-1-day?day=2026-07-15" \
+  -o api_response.json
+
+python3 -c "
+import json
+d = json.load(open('api_response.json'))
+rows = d if isinstance(d, list) else [d]
+row = rows[0] if rows else {}
+print('day:', row.get('day'))
+print()
+cohorts = row.get('totals_by_ai_adoption_phase')
+if cohorts:
+    print('totals_by_ai_adoption_phase found -- entry count:', len(cohorts))
+    print('First entry raw:')
+    print(json.dumps(cohorts[0], indent=2))
+    print()
+    print('All phase label values:')
+    for c in cohorts:
+        print(' ', repr(c.get('ai_adoption_phase')), '-> user_count:', c.get('user_count'))
+else:
+    print('totals_by_ai_adoption_phase: NOT PRESENT or empty')
+    print('Top-level keys in response row:', list(row.keys()))
+"

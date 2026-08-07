@@ -1,4 +1,3 @@
-
 import argparse
 import ast
 import hashlib
@@ -309,7 +308,41 @@ def normalize_scalar_label_value(value: Any) -> str:
       "{'power_user'}"
       "['power_user']"
       '{"ai_adoption_phase":"power_user"}'
+
+    Also maps all known variants of GitHub's AI adoption phase names to the
+    canonical phase_0/phase_1/phase_2/phase_3 taxonomy used by the dashboards.
+    GitHub's API has returned multiple formats across versions:
+      - Machine-readable: "phase_0", "phase_1", "phase_2", "phase_3"
+      - Human-readable:   "No Cohort", "Code first", "Agent first", "Multi-agent"
+      - Legacy:           "power_user", "no_cohort", "engaged", "passive"
+    All variants are normalised to the canonical phase_N form so dashboard
+    label cardinality stays stable regardless of which API version responded.
     """
+    # Canonical phase mapping -- applied after string extraction below
+    _PHASE_MAP = {
+        # Machine-readable (current API)
+        "phase_0": "phase_0",
+        "phase_1": "phase_1",
+        "phase_2": "phase_2",
+        "phase_3": "phase_3",
+        # Human-readable names from GitHub docs and native dashboard
+        "no cohort":    "phase_0",
+        "passive":      "phase_0",
+        "no_cohort":    "phase_0",
+        "code first":   "phase_1",
+        "code-first":   "phase_1",
+        "code_first":   "phase_1",
+        "agent first":  "phase_2",
+        "agent-first":  "phase_2",
+        "agent_first":  "phase_2",
+        "multi-agent":  "phase_3",
+        "multi_agent":  "phase_3",
+        "multiagent":   "phase_3",
+        # Legacy label values seen before May 2026
+        "power_user":   "phase_3",
+        "engaged":      "phase_1",
+    }
+
     if value is None:
         return "unknown"
 
@@ -346,6 +379,11 @@ def normalize_scalar_label_value(value: Any) -> str:
             return normalize_scalar_label_value(parsed)
         except Exception:
             pass
+
+    # Apply phase name mapping (case-insensitive)
+    mapped = _PHASE_MAP.get(s.lower())
+    if mapped:
+        return mapped
 
     return s
 
@@ -1078,16 +1116,28 @@ def build_user_team_points(row: Dict[str, Any], settings: Settings) -> List[Metr
 def build_ai_adoption_phase_rollup_points(user_rows: Sequence[Dict[str, Any]], settings: Settings) -> List[MetricPoint]:
     """
     Fallback cohort aggregates built from per-user daily rows when the enterprise
-    aggregate row does not include totals_by_ai_adoption_phase for a day.
+    aggregate row does not include totals_by_ai_adoption_phase with non-null
+    user_count values for a day.
+
+    This is the authoritative source for github_copilot_ai_adoption_phase_user_count
+    when GitHub's enterprise-level report does not provide it (which is common --
+    the enterprise report often returns the cohort array with null user_count values).
     """
     by_day_phase: Dict[Tuple[str, str], Dict[str, float]] = {}
     distinct_users: Dict[Tuple[str, str], Set[str]] = {}
+    rows_missing_phase = 0
 
     for row in user_rows:
         day = row.get("day")
-        phase = normalize_scalar_label_value(row.get("ai_adoption_phase") or "").strip()
-        if not day or not phase:
+        raw_phase = row.get("ai_adoption_phase") or ""
+        phase = normalize_scalar_label_value(raw_phase).strip()
+        if not day:
             continue
+        if not phase:
+            # User row has no phase assignment -- count them under "unknown"
+            # so they are visible in the dashboard rather than silently dropped.
+            phase = "unknown"
+            rows_missing_phase += 1
         key = (day, phase)
         user_id = normalize_scalar_label_value(row.get("user_id", "unknown"))
         distinct_users.setdefault(key, set()).add(user_id)
@@ -1101,6 +1151,14 @@ def build_ai_adoption_phase_rollup_points(user_rows: Sequence[Dict[str, Any]], s
         agg["code_generation_activity_count"] += float(coerce_number(row.get("code_generation_activity_count")) or 0.0)
         agg["code_acceptance_activity_count"] += float(coerce_number(row.get("code_acceptance_activity_count")) or 0.0)
         agg["loc_added_sum"] += float(coerce_number(row.get("loc_added_sum")) or 0.0)
+
+    if rows_missing_phase:
+        logging.warning(
+            "build_ai_adoption_phase_rollup_points: %s user rows had no ai_adoption_phase "
+            "field -- counted under 'unknown'. This is normal if GitHub has not yet "
+            "classified these users into a cohort.",
+            rows_missing_phase,
+        )
 
     points: List[MetricPoint] = []
     for (day, phase), agg in sorted(by_day_phase.items()):
@@ -1748,10 +1806,34 @@ class CopilotExporter:
         # (Fix 1) let both get written. Even with Fix 1, running both is wasteful and
         # produces drift warnings every cycle. Only run the fallback when the
         # authoritative source is genuinely absent for a given day.
+        # Gate: only suppress the fallback if the enterprise rows actually contain
+        # cohort entries WITH non-null user_count values.
+        #
+        # GitHub can return totals_by_ai_adoption_phase as a non-empty array but
+        # with null user_count inside each entry. The old gate checked only whether
+        # the array existed (bool([{user_count: null}]) == True), which suppressed
+        # the fallback while build_point silently dropped the null values.
+        # Result: neither source wrote github_copilot_ai_adoption_phase_user_count.
+        #
+        # The correct gate: the array must exist AND at least one entry must have
+        # a non-null, non-zero user_count for the authoritative source to be trusted.
         enterprise_had_cohort_totals = any(
-            bool(row.get("totals_by_ai_adoption_phase"))
+            cohort.get("user_count") is not None
             for row in enterprise_rows
+            for cohort in (row.get("totals_by_ai_adoption_phase") or [])
         )
+        if enterprise_had_cohort_totals:
+            logging.info(
+                "Cohort gate day=%s: enterprise rows contain non-null user_count -- "
+                "skipping fallback to avoid double-write",
+                day,
+            )
+        else:
+            logging.info(
+                "Cohort gate day=%s: enterprise rows have no non-null user_count in "
+                "totals_by_ai_adoption_phase -- running per-user fallback rollup",
+                day,
+            )
         if not enterprise_had_cohort_totals:
             cohort_rollup_points = build_ai_adoption_phase_rollup_points(user_rows, self.settings)
             logging.info(
@@ -1878,7 +1960,9 @@ class CopilotExporter:
             # FIX 6: Also cover cohort_rollups during bootstrap so cohort panels
             # have data for the full 28d window, not just from the first daily cycle.
             bootstrap_had_cohort_totals = any(
-                bool(row.get("totals_by_ai_adoption_phase")) for row in e_rows
+                cohort.get("user_count") is not None
+                for row in e_rows
+                for cohort in (row.get("totals_by_ai_adoption_phase") or [])
             )
             if not bootstrap_had_cohort_totals:
                 cohort_pts = build_ai_adoption_phase_rollup_points(u_rows, self.settings)
