@@ -462,3 +462,36 @@ kubectl apply -f 02-deployment.yaml -n np-keystone \
 ```
 
 That is the complete sequence — full wipe, fresh v3 import, backfill disabled after completion. Do the same for prod when non-prod is confirmed clean and correct.
+
+
+# Scale down the exporter FIRST so it stops re-writing
+kubectl scale deployment github-copilot-exporter -n np-keystone --replicas=0
+
+# Wait 10 seconds for it to stop
+sleep 10
+
+# Delete everything copilot-related in one broad sweep
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~".*copilot.*"}'
+
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~".*github_billing.*"}'
+
+# Force to disk
+curl http://localhost:8428/internal/force_merge
+
+echo "Done - waiting 15s for merge to complete"
+sleep 15
+
+# Verify
+curl 'http://localhost:8428/api/v1/label/__name__/values' \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+copilot = [n for n in d['data'] if 'copilot' in n.lower() or 'billing' in n.lower()]
+print(f'Remaining copilot/billing metrics: {len(copilot)}')
+for n in copilot:
+    print(f'  {n}')
+if not copilot:
+    print('CLEAN - ready to deploy v3 exporter')
+"
