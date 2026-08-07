@@ -387,6 +387,22 @@ curl http://localhost:8428/internal/force_merge
 echo "Deletion complete"
 ```
 
+================
+# Delete copilot_chat.* metrics (no github_ prefix)
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~"copilot_chat.*"}'
+
+# Delete github_copilot_exporter_* self-metrics
+curl -G 'http://localhost:8428/api/v1/admin/tsdb/delete_series' \
+  --data-urlencode 'match[]={__name__=~"github_copilot_exporter.*"}'
+
+# Force to disk
+curl http://localhost:8428/internal/force_merge
+
+echo "Done"
+
+===============
+
 ## Step 3 — Verify VM is clean
 ```bash
 curl 'http://localhost:8428/api/v1/label/__name__/values' \
