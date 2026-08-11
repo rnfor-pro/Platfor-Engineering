@@ -1514,8 +1514,8 @@ def build_billing_points(
             unique_usage_items.append(raw_item)
         else:
             logging.warning(
-                "Duplicate usageItem detected in billing payload family=%s org=%s day=%s -- dropping duplicate",
-                kind, org, target_day,
+                "Duplicate usageItem detected in billing payload family=%s day=%s -- dropping duplicate",
+                kind, target_day,
             )
     usage_items = unique_usage_items
     for item in usage_items:
@@ -1682,11 +1682,13 @@ def diff_points_against_vm(
         key = point.series_key()
         if key in deduped and deduped[key].value != point.value:
             intra_batch_dupes += 1
+            # Redact labels and values from log output -- labels can contain
+            # user_login and user_id (PII) and values are sensitive metric data.
+            # Log only the metric name and family for debugging without exposure.
             logging.warning(
-                "Intra-batch duplicate series_key family=%s metric=%s labels=%s ts_ms=%s "
-                "keeping=%s dropping=%s -- investigate double-write in pipeline",
-                family, point.metric, point.labels, point.timestamp_ms,
-                point.value, deduped[key].value,
+                "Intra-batch duplicate series_key family=%s metric=%s ts_ms=%s "
+                "-- investigate double-write in pipeline (labels/values redacted)",
+                family, point.metric, point.timestamp_ms,
             )
         deduped[key] = point
 
@@ -1864,8 +1866,8 @@ class CopilotExporter:
         # have different label sets so they don't collide via series_key, but
         # Grafana queries without a billing_scope filter will sum both.
         logging.debug(
-            "Processing billing day=%s scope=%s orgs=%s",
-            day, self.settings.billing_scope, org_targets,
+            "Processing billing day=%s scope=%s org_count=%s",
+            day, self.settings.billing_scope, len(list(org_targets)),
         )
 
         for kind in ("premium_request", "ai_credit"):
