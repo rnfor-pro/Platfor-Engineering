@@ -1,0 +1,114 @@
+{
+    "dashboard": {
+      "title": "Oracle Enterprise Manager - Database & Host Performance",
+      "uid": "oem-perf-overview",
+      "tags": ["oracle", "oem", "database", "infrastructure"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "1m",
+      "time": { "from": "now-6h", "to": "now" },
+      "templating": {
+        "list": [
+          { "name": "host", "type": "query", "query": "SELECT DISTINCT target_name FROM sysman.mgmt$target WHERE target_type='host'" },
+          { "name": "database", "type": "query", "query": "SELECT DISTINCT target_name FROM sysman.mgmt$target WHERE target_type='oracle_database'" }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1, "title": "CPU Utilization (%)", "type": "gauge",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT value FROM v$osstat WHERE stat_name='BUSY_TIME'" }],
+          "fieldConfig": { "defaults": { "unit": "percent", "max": 100,
+            "thresholds": { "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 95 }
+            ] } } }
+        },
+        {
+          "id": 2, "title": "Memory Usage (%)", "type": "gauge",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT pct_memory_used FROM host_memory_view" }],
+          "fieldConfig": { "defaults": { "unit": "percent", "max": 100,
+            "thresholds": { "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 85 },
+              { "color": "red", "value": 95 }
+            ] } } }
+        },
+        {
+          "id": 3, "title": "Disk Latency (ms)", "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT event, average_wait FROM v$system_event WHERE event LIKE '%db file%'" }],
+          "fieldConfig": { "defaults": { "unit": "ms",
+            "thresholds": { "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 20 },
+              { "color": "red", "value": 50 }
+            ] } } }
+        },
+        {
+          "id": 4, "title": "IOPS (Reads + Writes/sec)", "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT metric_name, value, begin_time FROM v$sysmetric WHERE metric_name IN ('Physical Read Total IO Requests Per Sec','Physical Write Total IO Requests Per Sec')" }],
+          "fieldConfig": { "defaults": { "unit": "iops" } }
+        },
+        {
+          "id": 5, "title": "Server Availability (%)", "type": "stat",
+          "gridPos": { "x": 12, "y": 6, "w": 6, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT ROUND(up_time/(up_time+down_time)*100,2) FROM sysman.mgmt$availability_summary WHERE target_name = '$host'" }],
+          "fieldConfig": { "defaults": { "unit": "percent",
+            "thresholds": { "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 99.0 },
+              { "color": "green", "value": 99.9 }
+            ] } } }
+        },
+        {
+          "id": 6, "title": "DB CPU Time (sec)", "type": "timeseries",
+          "gridPos": { "x": 18, "y": 6, "w": 6, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT value/1000000 seconds FROM v$sys_time_model WHERE stat_name = 'DB CPU'" }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 7, "title": "Active Sessions", "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT value, begin_time FROM v$sysmetric WHERE metric_name = 'Average Active Sessions' AND group_id = 2" }],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 8, "title": "Top Wait Events", "type": "bargauge",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT event, time_waited_micro/1000000 seconds FROM v$system_event WHERE wait_class != 'Idle' ORDER BY time_waited_micro DESC FETCH FIRST 10 ROWS ONLY" }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 9, "title": "Long-Running Queries (> 5 min)", "type": "table",
+          "gridPos": { "x": 0, "y": 18, "w": 12, "h": 8 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT sid, sql_id, elapsed_time/1000000 elapsed_seconds, sql_text FROM v$sql_monitor m JOIN v$sql s ON m.sql_id = s.sql_id WHERE m.status = 'EXECUTING' AND m.elapsed_time/1000000 > 300 ORDER BY elapsed_time DESC" }],
+          "fieldConfig": { "defaults": {} }
+        },
+        {
+          "id": 10, "title": "Tablespace Usage (%)", "type": "bargauge",
+          "gridPos": { "x": 12, "y": 18, "w": 12, "h": 8 },
+          "datasource": "${DS_ORACLE}",
+          "targets": [{ "rawSql": "SELECT tablespace_name, ROUND(used_percent,2) pct_used FROM dba_tablespace_usage_metrics ORDER BY used_percent DESC" }],
+          "fieldConfig": { "defaults": { "unit": "percent", "max": 100,
+            "thresholds": { "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 85 },
+              { "color": "red", "value": 97 }
+            ] } } }
+        }
+      ]
+    }
+  }
