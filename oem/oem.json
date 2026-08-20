@@ -1,0 +1,719 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": { "type": "datasource", "uid": "grafana" },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "panels": [
+      {
+        "fieldConfig": { "defaults": {}, "overrides": [] },
+        "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+        "id": 29,
+        "options": {
+          "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false },
+          "content": "**Oracle Enterprise Manager - Database & Host Performance**\n\nUses OEM repository queries from mgmt$metric_details, mgmt$metric_hourly, and mgmt$metric_daily tables.\nOEM datasource is configured and user has SELECT on mgmt$ tables.\n\n**Important:** Ensure the $TimePicker variable is set appropriately for the selected time range (Raw 1-day / Hourly 7-30 days / Daily 365 days).",
+          "mode": "markdown"
+        },
+        "pluginVersion": "12.4.6",
+        "title": "",
+        "type": "text"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Percentage of total CPU capacity being used across application and database servers over time.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "percent", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 2 },
+        "id": 1,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'cpuusage_ps' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'instance_efficiency' AND m.metric_column = 'cpuusage_ps' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "CPU Utilization (%)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Amount of database time consumed per second showing overall database utilization.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 2 },
+        "id": 2,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'dbTimePs' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'sysTimeModel' AND m.metric_column = 'dbTimePs' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "DB Time per Second",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Average number of active sessions on the database.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" }, "mappings": [], "min": 0,
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 3, "x": 0, "y": 10 },
+        "id": 3,
+        "options": {
+          "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto"
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'avg_active_sessions' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'instance_throughput' AND m.metric_column = 'avg_active_sessions' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Active Sessions",
+        "type": "gauge"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Number of disk input/output operations processed per second in megabytes.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "decmbytes"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 9, "x": 3, "y": 10 },
+        "id": 4,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'iombs_ps' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'instance_throughput' AND m.metric_column = 'iombs_ps' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "IOPS (I/O MB per Second)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Total number of user logons currently connected to the database.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" }, "mappings": [], "max": 100, "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "#EF843C", "value": 60 },
+                { "color": "#EAB839", "value": 70 },
+                { "color": "#E24D42", "value": 90 }
+              ]
+            },
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 3, "x": 12, "y": 10 },
+        "id": 5,
+        "options": {
+          "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "showThresholdLabels": false, "showThresholdMarkers": true, "sizing": "auto"
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'logons' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'Database_Resource_Usage' AND m.metric_column = 'logons' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Current Logon Count",
+        "type": "gauge"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Total memory allocated and in use by the Oracle database instance in megabytes.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "decmbytes"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 9, "x": 15, "y": 10 },
+        "id": 6,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'total_memory' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'memory_usage' AND m.metric_column = 'total_memory' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Total Memory Usage (MB)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Percentage of database time spent handling user calls and requests.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+        "id": 7,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'usercall_pct' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'instance_throughput' AND m.metric_column = 'usercall_pct' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "User Calls (%)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Amount of time spent executing SQL statements per second in the database.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+        "id": 8,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'sqlExecuteElapsedTimePs' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'sysTimeModel' AND m.metric_column = 'sqlExecuteElapsedTimePs' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "SQL Execution Time per Second",
+        "type": "timeseries"
+      },
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "Percentage of buffer cache hits showing cache effectiveness for database read operations.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" }, "mappings": [], "max": 100, "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "#EAB839", "value": 85 },
+                { "color": "red", "value": 97 }
+              ]
+            },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+        "id": 9,
+        "options": {
+          "displayMode": "gradient",
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "maxVizHeight": 300, "minVizHeight": 16, "minVizWidth": 8,
+          "namePlacement": "auto", "orientation": "horizontal",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "showUnfilled": true, "sizing": "auto", "valueMode": "color"
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'bufcachehit_pct' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'instance_efficiency' AND m.metric_column = 'bufcachehit_pct' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Buffer Cache Hit (%)",
+        "type": "bargauge"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "FIXED: applies the 3-tier raw/hourly/daily repository query pattern (memory_usage / pctmemusage), matching the confirmed-working 'Total Memory Usage (MB)' panel's metric family.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "percent", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+        "id": 10,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": { "expr1": { "operand1": "$TimePicker", "operand2": "1", "operator": "=" } },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'pctmemusage' AS metric,\n    m.value AS value\nFROM mgmt$metric_details m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'memory_usage'\n    AND m.metric_column = 'pctmemusage'\n    AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          },
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": {
+              "expr1": { "operand1": "$TimePicker", "operand2": "7", "operator": "=" },
+              "expr2": { "operand1": "$TimePicker", "operand2": "30", "operator": "=" },
+              "operator": "OR"
+            },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.rollup_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'pctmemusage' AS metric,\n    m.average AS value\nFROM mgmt$metric_hourly m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'memory_usage'\n    AND m.metric_column = 'pctmemusage'\n    AND m.rollup_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.rollup_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "B",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          },
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": { "expr1": { "operand1": "$TimePicker", "operand2": "365", "operator": "=" } },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.rollup_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'pctmemusage' AS metric,\n    m.average AS value\nFROM mgmt$metric_daily m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'memory_usage'\n    AND m.metric_column = 'pctmemusage'\n    AND m.rollup_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.rollup_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "C",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Memory Usage (%)",
+        "type": "timeseries"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "NOT FIXED: no confirmed metric_name/metric_column exists in either reference dashboard for disk latency. This may be a HOST-level metric (target_type='host') rather than a database-level one, which would explain why it returns nothing while this dashboard is locked to $oem_gf_target_type=oracle_database. Check Enterprise Manager under Target > Monitoring > All Metrics for the exact metric_name/metric_column before wiring this panel up, then apply the same raw/hourly/daily pattern used elsewhere on this dashboard. The query below is UNCHANGED from the original broken panel.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "milliseconds", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "links": [], "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "yellow", "value": 20 }, { "color": "red", "value": 50 } ] },
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+        "id": 11,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec, 'disk_latency' AS metric, m.value AS value FROM mgmt$metric_details m, mgmt$target t WHERE m.target_name = $oem_gf_target_name AND m.target_type = $oem_gf_target_type AND t.target_name = m.target_name AND t.target_type = m.target_type AND m.metric_name = 'disk' AND m.metric_column = 'disk_latency' AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE) AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE) ORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "Disk Latency (ms)",
+        "type": "timeseries"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "FIXED: this is a live status snapshot, not a metric-history series. Replaced the mgmt$metric_details query (metric_name='availability'/metric_column='pct_available', which never populated) with the status-current view used in the working 'Single Instance Database Overview' dashboard, and swapped the panel type from gauge to stat with a status-code value mapping.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "mappings": [
+              {
+                "options": {
+                  "0": { "text": "Down" },
+                  "1": { "text": "Up" },
+                  "2": { "text": "Metric Error, Agent Unreachable, Unknown" },
+                  "3": { "text": "Metric Error, Agent Unreachable, Unknown" },
+                  "4": { "text": "Metric Error, Agent Unreachable, Unknown" },
+                  "5": { "text": "Blackout" },
+                  "6": { "text": "Metric Error, Agent Unreachable, Unknown" }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": 0 },
+                { "color": "dark-red", "value": 0 },
+                { "color": "dark-green", "value": 1 },
+                { "color": "dark-yellow", "value": 2 },
+                { "color": "dark-yellow", "value": 3 },
+                { "color": "dark-yellow", "value": 4 },
+                { "color": "dark-blue", "value": 5 },
+                { "color": "dark-yellow", "value": 6 }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 34 },
+        "id": 12,
+        "interval": "10s",
+        "maxDataPoints": 1,
+        "options": {
+          "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^STATUS$/", "values": false },
+          "showPercentChange": false, "textMode": "auto", "wideLayout": true
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "select \n    sysdate as time_sec,\n    c.availability_status_code AS Status,\n    c.availability_status as metric\nFROM sysman.mgmt$availability_current c\nWHERE c.target_name = $oem_gf_target_name\n    AND c.target_type = $oem_gf_target_type",
+            "refId": "A",
+            "seriesType": "General Query(Repository)",
+            "target": "Custom(Repository)",
+            "type": "Table",
+            "value": "Average"
+          }
+        ],
+        "timeFrom": "now-1m",
+        "title": "Server Availability (%)",
+        "type": "stat"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "FIXED: applies the 3-tier raw/hourly/daily repository query pattern to the same sysTimeModel metric family as the confirmed-working 'DB Time per Second' and 'SQL Execution Time per Second' panels.",
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "custom": {
+              "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text",
+              "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6,
+              "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none",
+              "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+              "insertNulls": false, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5,
+              "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false,
+              "spanNulls": true, "stacking": { "group": "A", "mode": "none" },
+              "thresholdsStyle": { "mode": "off" }
+            },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] },
+            "unit": "s"
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 6, "w": 9, "x": 6, "y": 34 },
+        "id": 13,
+        "options": {
+          "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+          "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+        },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": { "expr1": { "operand1": "$TimePicker", "operand2": "1", "operator": "=" } },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.collection_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'dbCpuTimePs' AS metric,\n    m.value AS value\nFROM mgmt$metric_details m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'sysTimeModel'\n    AND m.metric_column = 'dbCpuTimePs'\n    AND m.collection_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.collection_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "A",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          },
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": {
+              "expr1": { "operand1": "$TimePicker", "operand2": "7", "operator": "=" },
+              "expr2": { "operand1": "$TimePicker", "operand2": "30", "operator": "=" },
+              "operator": "OR"
+            },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.rollup_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'dbCpuTimePs' AS metric,\n    m.average AS value\nFROM mgmt$metric_hourly m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'sysTimeModel'\n    AND m.metric_column = 'dbCpuTimePs'\n    AND m.rollup_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.rollup_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "B",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          },
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "filterExpression": { "expr1": { "operand1": "$TimePicker", "operand2": "365", "operator": "=" } },
+            "rawQuery": "SELECT\n    from_tz(CAST(m.rollup_timestamp AS TIMESTAMP), t.timezone_region) AT TIME ZONE SESSIONTIMEZONE AS time_sec,\n    'dbCpuTimePs' AS metric,\n    m.average AS value\nFROM mgmt$metric_daily m, mgmt$target t\nWHERE m.target_name = $oem_gf_target_name\n    AND m.target_type = $oem_gf_target_type\n    AND t.target_name = m.target_name AND t.target_type = m.target_type\n    AND m.metric_name = 'sysTimeModel'\n    AND m.metric_column = 'dbCpuTimePs'\n    AND m.rollup_timestamp >= CAST(TO_UTC_TIMESTAMP_TZ('${__from:date}') AT TIME ZONE t.timezone_region AS DATE)\n    AND m.rollup_timestamp <= CAST(TO_UTC_TIMESTAMP_TZ('${__to:date}') AT TIME ZONE t.timezone_region AS DATE)\nORDER BY time_sec ASC",
+            "refId": "C",
+            "seriesType": "Timeseries Query(Repository)",
+            "type": "Timeseries"
+          }
+        ],
+        "title": "DB CPU Time (sec)",
+        "type": "timeseries"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "NOT FIXED: this queries v$system_event directly, a live dynamic-performance view on the TARGET database. The oracle-emcc-datasource connects to the OEM REPOSITORY, which does not expose target v$ views, so this table cannot be reached this way regardless of syntax. Real fixes: (1) remove this panel, (2) build an OEM Metric Extension that snapshots wait events into mgmt$metric_details on a schedule and query that instead, or (3) add a second Grafana datasource pointed directly at the target database. The query below is UNCHANGED from the original broken panel.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "footer": { "reducers": [] }, "inspect": false },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 6, "w": 9, "x": 15, "y": 34 },
+        "id": 14,
+        "options": { "cellHeight": "sm", "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "showHeader": true, "sortBy": [] },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT event, ROUND(time_waited_micro/1000000, 2) as wait_time_seconds FROM v$system_event WHERE wait_class != 'Idle' AND time_waited_micro > 0 ORDER BY time_waited_micro DESC FETCH FIRST 10 ROWS ONLY",
+            "refId": "A",
+            "seriesType": "Table",
+            "type": "Table"
+          }
+        ],
+        "title": "Top Wait Events",
+        "type": "table"
+      },
+  
+      {
+        "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+        "description": "NOT FIXED: this queries v$sql_monitor directly, a live dynamic-performance view on the TARGET database, unreachable from the OEM REPOSITORY datasource for the same reason as 'Top Wait Events' above. Real fixes: (1) remove this panel, (2) build an OEM Metric Extension that snapshots long-running SQL into mgmt$metric_details, or (3) add a second Grafana datasource pointed directly at the target database. The query below is UNCHANGED from the original broken panel.",
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "footer": { "reducers": [] }, "inspect": false },
+            "mappings": [],
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": 0 }, { "color": "red", "value": 80 } ] }
+          },
+          "overrides": []
+        },
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 40 },
+        "id": 15,
+        "options": { "cellHeight": "sm", "showHeader": true, "sortBy": [] },
+        "pluginVersion": "12.4.6",
+        "targets": [
+          {
+            "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+            "rawQuery": "SELECT sid, sql_id, ROUND(elapsed_time/1000000, 2) as elapsed_seconds, sql_text FROM v$sql_monitor WHERE status = 'EXECUTING' AND elapsed_time/1000000 > 300 ORDER BY elapsed_time DESC FETCH FIRST 10 ROWS ONLY",
+            "refId": "A",
+            "seriesType": "Table",
+            "type": "Table"
+          }
+        ],
+        "title": "Long-running Queries (> 5 min)",
+        "type": "table"
+      }
+    ],
+    "preload": false,
+    "refresh": "",
+    "schemaVersion": 42,
+    "tags": ["oracle-emcc-app", "oracle-emcc-datasource", "oem"],
+    "templating": {
+      "list": [
+        {
+          "current": { "text": "EM13c-Prod", "value": "dfj9q5jvso3k8a" },
+          "includeAll": false, "label": "EM", "name": "oem_gf_emsite", "options": [],
+          "query": "oracle-emcc-datasource", "refresh": 1, "regex": "", "type": "datasource"
+        },
+        {
+          "current": { "text": "oracle_database", "value": "oracle_database" },
+          "includeAll": false, "label": "Target Type", "name": "oem_gf_target_type", "options": [],
+          "query": "oracle_database", "type": "custom", "valuesFormat": "csv"
+        },
+        {
+          "current": { "text": ["CNEPTCH_CNEPTCH2"], "value": ["CNEPTCH_CNEPTCH2"] },
+          "datasource": { "type": "oracle-emcc-datasource", "uid": "$oem_gf_emsite" },
+          "definition": "", "includeAll": true, "label": "Target Name", "multi": true,
+          "name": "oem_gf_target_name", "options": [],
+          "query": { "targetType": "$oem_gf_target_type", "type": 1 },
+          "refresh": 1, "regex": "", "regexApplyTo": "value", "type": "query"
+        },
+        {
+          "current": { "text": "7", "value": "7" },
+          "description": "Select time range for data granularity",
+          "includeAll": false, "label": "Time Range", "name": "TimePicker", "options": [],
+          "query": "1 Day (Raw) : 1, 7 Days (Hourly) : 7, 30 Days (Hourly) : 30, 365 Days (Daily) : 365",
+          "type": "custom", "valuesFormat": "csv"
+        }
+      ]
+    },
+    "time": { "from": "now-7d", "to": "now" },
+    "timepicker": { "refresh_intervals": ["5m", "15m", "30m", "1h", "2h", "1d"] },
+    "timezone": "browser",
+    "title": "Oracle Enterprise Manager - Database & Host Performance",
+    "uid": "oem-perf-overview",
+    "version": 3,
+    "weekStart": ""
+  }
