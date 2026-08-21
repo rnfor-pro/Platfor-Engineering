@@ -1,0 +1,286 @@
+{
+    "__inputs": [
+      {
+        "name": "DS_VICTORIAMETRICS",
+        "label": "VictoriaMetrics",
+        "description": "",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "pluginName": "Prometheus"
+      }
+    ],
+    "__elements": {},
+    "__requires": [
+      {
+        "type": "grafana",
+        "id": "grafana",
+        "name": "Grafana",
+        "version": "10.0.0"
+      },
+      {
+        "type": "datasource",
+        "id": "prometheus",
+        "name": "Prometheus",
+        "version": "1.0.0"
+      },
+      {
+        "type": "panel",
+        "id": "bargauge",
+        "name": "Bar gauge",
+        "version": ""
+      },
+      {
+        "type": "panel",
+        "id": "timeseries",
+        "name": "Time series",
+        "version": ""
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "description": "Health of the PMX/BAMA /api/v1/reporting.* server routes (KEYSTONE_TENANT_ID=pmx, deployment_environment=prod).",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "id": 1,
+        "type": "bargauge",
+        "title": "Top reporting routes by request count (24h)",
+        "description": "Shows most-used /api/v1/reporting endpoints.",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIAMETRICS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "min": 0,
+            "color": {
+              "mode": "continuous-BlPu"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true,
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          }
+        },
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 10
+        },
+        "targets": [
+          {
+            "expr": "topk(20, sum by (\"http.route\") (\n  increase({\"http.server.duration_count\",KEYSTONE_TENANT_ID=\"pmx\",deployment_environment=\"prod\",\"http.route\"=~\"/api/v1/reporting.*\"}[24h])\n))",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_VICTORIAMETRICS}"
+            },
+            "legendFormat": "{{http.route}}"
+          }
+        ],
+        "pluginVersion": "10.0.0"
+      },
+      {
+        "id": 2,
+        "type": "bargauge",
+        "title": "Top reporting routes by cumulative wait seconds (24h)",
+        "description": "Best business-impact view; highest total waiting time for users.",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIAMETRICS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "color": {
+              "mode": "continuous-BlPu"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true,
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          }
+        },
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 24,
+          "h": 10
+        },
+        "targets": [
+          {
+            "expr": "topk(20, sum by (\"http.route\") (\n  increase({\"http.server.duration_sum\",KEYSTONE_TENANT_ID=\"pmx\",deployment_environment=\"prod\",\"http.route\"=~\"/api/v1/reporting.*\"}[24h])\n) / 1000)",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_VICTORIAMETRICS}"
+            },
+            "legendFormat": "{{http.route}}"
+          }
+        ],
+        "pluginVersion": "10.0.0"
+      },
+      {
+        "id": 3,
+        "type": "timeseries",
+        "title": "Average latency by reporting route",
+        "description": "Endpoint-level degradation over time.",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_VICTORIAMETRICS}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "fillOpacity": 15,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              },
+              "axisPlacement": "auto",
+              "axisLabel": "seconds",
+              "axisColorMode": "text",
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "insertNulls": false,
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "max": 60
+          },
+          "overrides": []
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": [],
+            "showLegend": true
+          }
+        },
+        "gridPos": {
+          "x": 0,
+          "y": 20,
+          "w": 24,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum by (\"http.route\") (\n  rate({\"http.server.duration_sum\",KEYSTONE_TENANT_ID=\"pmx\",deployment_environment=\"prod\",\"http.route\"=~\"/api/v1/reporting.*\"}[$__rate_interval])\n)\n/\nsum by (\"http.route\") (\n  rate({\"http.server.duration_count\",KEYSTONE_TENANT_ID=\"pmx\",deployment_environment=\"prod\",\"http.route\"=~\"/api/v1/reporting.*\"}[$__rate_interval])\n)",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_VICTORIAMETRICS}"
+            },
+            "legendFormat": "{{http.route}}"
+          }
+        ],
+        "pluginVersion": "10.0.0"
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 39,
+    "tags": [
+      "pmx",
+      "bama",
+      "reporting"
+    ],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "PMX/BAMA Reporting Path Health",
+    "uid": "pmx-bama-reporting-path-health",
+    "version": 1,
+    "weekStart": ""
+  }
