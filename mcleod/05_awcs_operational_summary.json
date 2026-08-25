@@ -1,0 +1,535 @@
+{
+  "dashboard": {
+    "uid": "awcs-operational-summary",
+    "title": "AWCS Operational Summary",
+    "description": "Compact operational view using only telemetry currently available (Tempo + Loki). Tenant np-edps-aks, epe_service_env=sit. Excludes health-check spans (GET /actuator/health/**). Tenant is fixed to np-edps-aks and environment to epe_service_env=\"sit\" \u2014 no cross-tenant or cross-environment data is included. This dashboard does not claim order-level visibility and does not treat ServiceBus.complete spans as proof of complete transaction success.",
+    "tags": [
+      "awcs",
+      "mcleod",
+      "summary",
+      "non-prod",
+      "sit"
+    ],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "30s",
+        "1m",
+        "5m",
+        "15m"
+      ],
+      "time_options": [
+        "5m",
+        "15m",
+        "1h",
+        "6h",
+        "12h",
+        "24h",
+        "2d",
+        "7d"
+      ]
+    },
+    "refresh": "1m",
+    "schemaVersion": 39,
+    "version": 1,
+    "templating": {
+      "list": [
+        {
+          "name": "tempo_ds",
+          "type": "datasource",
+          "query": "tempo",
+          "label": "Tempo datasource",
+          "current": {
+            "text": "Tempo (non-prod)",
+            "value": "adj4lmm0iyr5sf"
+          },
+          "hide": 0,
+          "description": "Primary trace datasource (Tempo, non-prod Grafana Enterprise). Defaults to uid adj4lmm0iyr5sf."
+        },
+        {
+          "name": "loki_ds",
+          "type": "datasource",
+          "query": "loki",
+          "label": "Loki datasource",
+          "hide": 0,
+          "description": "Existing non-prod Loki datasource. Select your org's non-prod Loki instance."
+        },
+        {
+          "name": "tenant",
+          "type": "textbox",
+          "label": "Tenant (reference only)",
+          "current": {
+            "value": "np-edps-aks"
+          },
+          "query": "np-edps-aks",
+          "hide": 0,
+          "description": "KEYSTONE_TENANT_ID reference. Panel queries below use this value as a literal and are NOT re-parameterized by this box, per the 'do not modify existing queries' rule."
+        },
+        {
+          "name": "environment",
+          "type": "textbox",
+          "label": "Environment (reference only)",
+          "current": {
+            "value": "sit"
+          },
+          "query": "sit",
+          "hide": 0,
+          "description": "epe_service_env reference. Panel queries below use this value as a literal."
+        },
+        {
+          "name": "service",
+          "type": "textbox",
+          "label": "Service (reference only)",
+          "current": {
+            "value": "epe-awcs-mcleod.*"
+          },
+          "query": "epe-awcs-mcleod.*",
+          "hide": 0,
+          "description": "resource.service.name filter reference. Panel queries below use this value as a literal."
+        },
+        {
+          "name": "trace_id",
+          "type": "textbox",
+          "label": "TraceId",
+          "current": {
+            "value": ""
+          },
+          "query": "",
+          "hide": 0,
+          "description": "Paste a TraceId here to filter panels that reference $trace_id."
+        }
+      ]
+    },
+    "annotations": {
+      "list": []
+    },
+    "links": [],
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Matching Trace Count",
+        "description": "Number of matching AWCS traces in the selected time range, excluding health checks. Datasource: Tempo (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${tempo_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "tempo",
+              "uid": "${tempo_ds}"
+            },
+            "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n}",
+            "queryType": "traceql",
+            "limit": 200,
+            "tableType": "traces",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {}
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "count"
+            ]
+          },
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Error Spans",
+        "description": "Counts or lists spans explicitly marked as errors by OpenTelemetry. Datasource: Tempo (non-prod).",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 6
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${tempo_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "tempo",
+              "uid": "${tempo_ds}"
+            },
+            "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\" &&\n  span:status = error\n}",
+            "queryType": "traceql",
+            "limit": 200,
+            "tableType": "traces",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "count"
+            ]
+          },
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 3,
+        "type": "table",
+        "title": "Longest Trace",
+        "description": "Identifies the longest observed AWCS traces. This is intended for drill-down investigation and does not by itself identify the business bottleneck. Datasource: Tempo (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${tempo_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "tempo",
+              "uid": "${tempo_ds}"
+            },
+            "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n} | by(trace:id)",
+            "queryType": "traceql",
+            "limit": 200,
+            "tableType": "traces",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {}
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "trace:id"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceId"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Trace ID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      {
+        "id": 4,
+        "type": "timeseries",
+        "title": "AWCS Log Volume",
+        "description": "Shows AWCS application log volume over time. Spikes may indicate increased traffic or repeated failures, but log volume is not equivalent to transaction volume. Datasource: Loki (existing non-prod instance).",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "${loki_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "loki",
+              "uid": "${loki_ds}"
+            },
+            "expr": "sum(count_over_time(\n  {service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"}[5m]\n))",
+            "queryType": "range",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 40
+            }
+          },
+          "overrides": []
+        },
+        "options": {}
+      },
+      {
+        "id": 5,
+        "type": "table",
+        "title": "Downstream API Activity",
+        "description": "Lists downstream client spans issued by AWCS services. Use this panel to investigate external API activity and latency. Datasource: Tempo (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 22,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${tempo_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "tempo",
+              "uid": "${tempo_ds}"
+            },
+            "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  span:kind = client\n}",
+            "queryType": "traceql",
+            "limit": 200,
+            "tableType": "traces",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {}
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "trace:id"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceId"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Trace ID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    ]
+  },
+  "overwrite": false,
+  "folderUid": null
+}

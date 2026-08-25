@@ -1,0 +1,441 @@
+{
+  "dashboard": {
+    "uid": "awcs-victoriametrics-metrics-readiness",
+    "title": "AWCS VictoriaMetrics Metrics Readiness",
+    "description": "Exposes available metrics without fabricating AWCS endpoint data, and clearly identifies missing instrumentation. Datasources: VictoriaMetrics (existing non-prod instance, Prometheus-compatible) and Tempo (fallback panel). As of the investigation behind this dashboard, custom_http_request_* and http_server_* metric families exist globally in VictoriaMetrics but no series were found for KEYSTONE_TENANT_ID=\"np-edps-aks\" AWCS services. Panels are kept visible (not deleted) so they activate automatically once instrumentation lands \u2014 re-run each query after deployment to confirm.",
+    "tags": [
+      "awcs",
+      "mcleod",
+      "victoriametrics",
+      "tempo",
+      "non-prod",
+      "sit"
+    ],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": [
+        "30s",
+        "1m",
+        "5m",
+        "15m"
+      ],
+      "time_options": [
+        "5m",
+        "15m",
+        "1h",
+        "6h",
+        "12h",
+        "24h",
+        "2d",
+        "7d"
+      ]
+    },
+    "refresh": "1m",
+    "schemaVersion": 39,
+    "version": 1,
+    "templating": {
+      "list": [
+        {
+          "name": "tempo_ds",
+          "type": "datasource",
+          "query": "tempo",
+          "label": "Tempo datasource",
+          "current": {
+            "text": "Tempo (non-prod)",
+            "value": "adj4lmm0iyr5sf"
+          },
+          "hide": 0,
+          "description": "Primary trace datasource (Tempo, non-prod Grafana Enterprise). Defaults to uid adj4lmm0iyr5sf."
+        },
+        {
+          "name": "loki_ds",
+          "type": "datasource",
+          "query": "loki",
+          "label": "Loki datasource",
+          "hide": 0,
+          "description": "Existing non-prod Loki datasource. Select your org's non-prod Loki instance."
+        },
+        {
+          "name": "vm_ds",
+          "type": "datasource",
+          "query": "prometheus",
+          "label": "VictoriaMetrics datasource",
+          "hide": 0,
+          "description": "Existing non-prod VictoriaMetrics datasource (Prometheus-compatible). Select your org's non-prod VictoriaMetrics instance."
+        },
+        {
+          "name": "tenant",
+          "type": "textbox",
+          "label": "Tenant (reference only)",
+          "current": {
+            "value": "np-edps-aks"
+          },
+          "query": "np-edps-aks",
+          "hide": 0,
+          "description": "KEYSTONE_TENANT_ID reference. Panel queries below use this value as a literal and are NOT re-parameterized by this box, per the 'do not modify existing queries' rule."
+        },
+        {
+          "name": "environment",
+          "type": "textbox",
+          "label": "Environment (reference only)",
+          "current": {
+            "value": "sit"
+          },
+          "query": "sit",
+          "hide": 0,
+          "description": "epe_service_env reference. Panel queries below use this value as a literal."
+        },
+        {
+          "name": "service",
+          "type": "textbox",
+          "label": "Service (reference only)",
+          "current": {
+            "value": "epe-awcs-mcleod.*"
+          },
+          "query": "epe-awcs-mcleod.*",
+          "hide": 0,
+          "description": "resource.service.name filter reference. Panel queries below use this value as a literal."
+        }
+      ]
+    },
+    "annotations": {
+      "list": []
+    },
+    "links": [],
+    "panels": [
+      {
+        "id": 1,
+        "type": "text",
+        "title": "Instrumentation Status",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 5
+        },
+        "options": {
+          "mode": "markdown",
+          "content": "**Verified as of the last investigation:** the following metric families exist globally in this VictoriaMetrics instance, but **no series were found** for `KEYSTONE_TENANT_ID=\"np-edps-aks\"` scoped to AWCS McLeod services:\n\n- `custom_http_request_count`\n- `custom_http_request_bucket`\n- `custom_http_request_sum`\n- `http_server_request_duration_seconds_count`\n- `http_server_request_duration_seconds_bucket`\n- `http_server_request_duration_seconds_sum`\n- `http_server_active_requests`\n\nPanels 1\u20133 below are expected to render **No data** until AWCS emits these series. This is a readiness dashboard, not a populated endpoint-saturation dashboard \u2014 re-test each query after instrumentation changes rather than substituting another tenant's data."
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        }
+      },
+      {
+        "id": 2,
+        "type": "timeseries",
+        "title": "AWCS Endpoint Request Rate  \u26a0 No AWCS series found as of last test",
+        "description": "Endpoint request rate for AWCS services. This query was tested against non-prod VictoriaMetrics and returned no AWCS data. Keep the panel visible with a clear 'No AWCS metrics currently available' annotation rather than substituting another tenant's data. Datasource: VictoriaMetrics (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${vm_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${vm_ds}"
+            },
+            "expr": "sum by (uri, method) (\n  rate(custom_http_request_count{\n    KEYSTONE_TENANT_ID=\"np-edps-aks\",\n    service_name=~\"epe-awcs-mcleod.*\"\n  }[$__rate_interval])\n)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10
+            },
+            "noValue": "No AWCS metrics currently available \u2014 pending instrumentation"
+          },
+          "overrides": []
+        },
+        "options": {}
+      },
+      {
+        "id": 3,
+        "type": "timeseries",
+        "title": "AWCS Endpoint P95 Latency  \u26a0 No AWCS series found as of last test",
+        "description": "95th percentile endpoint latency for AWCS services. This requires AWCS request-duration histogram series. The metric family exists globally, but no matching AWCS series were found during testing. Datasource: VictoriaMetrics (non-prod).",
+        "gridPos": {
+          "x": 12,
+          "y": 5,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${vm_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${vm_ds}"
+            },
+            "expr": "histogram_quantile(\n  0.95,\n  sum by (le, uri, method) (\n    rate(custom_http_request_bucket{\n      KEYSTONE_TENANT_ID=\"np-edps-aks\",\n      service_name=~\"epe-awcs-mcleod.*\"\n    }[$__rate_interval])\n  )\n)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10
+            },
+            "unit": "s",
+            "noValue": "No AWCS metrics currently available \u2014 pending instrumentation"
+          },
+          "overrides": []
+        },
+        "options": {}
+      },
+      {
+        "id": 4,
+        "type": "timeseries",
+        "title": "AWCS In-Flight Requests  \u26a0 No AWCS series found as of last test",
+        "description": "Shows active HTTP requests for AWCS services if exported. No matching AWCS series were found during testing. Datasource: VictoriaMetrics (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 13,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${vm_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${vm_ds}"
+            },
+            "expr": "sum by (service_name) (\n  http_server_active_requests{\n    KEYSTONE_TENANT_ID=\"np-edps-aks\",\n    service_name=~\"epe-awcs-mcleod.*\"\n  }\n)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 10
+            },
+            "noValue": "No AWCS metrics currently available \u2014 pending instrumentation"
+          },
+          "overrides": []
+        },
+        "options": {}
+      },
+      {
+        "id": 5,
+        "type": "stat",
+        "title": "Metrics Availability Status  \u26a0 Expected 0 as of last test",
+        "description": "Reports whether VictoriaMetrics currently has any AWCS series for the tenant and service filter. A zero result means endpoint saturation metrics are not currently available in VictoriaMetrics. Datasource: VictoriaMetrics (non-prod).",
+        "gridPos": {
+          "x": 12,
+          "y": 13,
+          "w": 12,
+          "h": 8
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${vm_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${vm_ds}"
+            },
+            "expr": "count({\n  KEYSTONE_TENANT_ID=\"np-edps-aks\",\n  service_name=~\"epe-awcs-mcleod.*\"\n})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "noValue": "0 series \u2014 no AWCS metrics available yet",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 6,
+        "type": "table",
+        "title": "Tempo Span-Based Endpoint Activity",
+        "description": "Fallback investigation panel using Tempo spans while VictoriaMetrics endpoint metrics are unavailable. This provides trace-level endpoint activity but is not a replacement for time-series request-rate, saturation, or percentile metrics. Datasource: Tempo (non-prod).",
+        "gridPos": {
+          "x": 0,
+          "y": 21,
+          "w": 24,
+          "h": 8
+        },
+        "datasource": {
+          "type": "tempo",
+          "uid": "${tempo_ds}"
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "tempo",
+              "uid": "${tempo_ds}"
+            },
+            "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n}",
+            "queryType": "traceql",
+            "limit": 200,
+            "tableType": "traces",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {}
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "trace:id"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "traceId"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Trace ID"
+              },
+              "properties": [
+                {
+                  "id": "links",
+                  "value": [
+                    {
+                      "title": "View trace in Tempo",
+                      "url": "",
+                      "targetBlank": false,
+                      "internal": {
+                        "datasourceUid": "${tempo_ds}",
+                        "datasourceName": "Tempo",
+                        "query": {
+                          "query": "${__value.raw}",
+                          "queryType": "traceql"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {}
+      }
+    ]
+  },
+  "overwrite": false,
+  "folderUid": null
+}
