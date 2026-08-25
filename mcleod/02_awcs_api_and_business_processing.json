@@ -1,8 +1,8 @@
 {
   "id": null,
-  "uid": "awcs-transaction-trace-analysis",
-  "title": "AWCS Transaction Trace Analysis",
-  "description": "Trace-level investigation for AWCS McLeod message processing, downstream API calls, Service Bus activity, and business-processing spans. Datasource: Tempo (non-prod). Tenant np-edps-aks, epe_service_env=sit. Excludes health-check spans (GET /actuator/health/**). Tenant is fixed to np-edps-aks and environment to epe_service_env=\"sit\" \u2014 no cross-tenant or cross-environment data is included. Filters at top (Tenant/Environment/Service) are reference-only labels; the underlying TraceQL queries are fixed literals per the approved spec and are not re-parameterized, so existing query text is preserved exactly.",
+  "uid": "awcs-api-business-processing",
+  "title": "AWCS API and Business Processing",
+  "description": "Downstream API activity and internal business-processing spans from the currently available Tempo telemetry. Datasource: Tempo (non-prod). Tenant np-edps-aks, epe_service_env=sit. Excludes health-check spans (GET /actuator/health/**). Tenant is fixed to np-edps-aks and environment to epe_service_env=\"sit\" \u2014 no cross-tenant or cross-environment data is included.",
   "tags": [
     "awcs",
     "mcleod",
@@ -170,13 +170,13 @@
     {
       "id": 1,
       "type": "table",
-      "title": "AWCS Trace Search",
-      "description": "Lists non-health-check traces emitted by the AWCS McLeod services for tenant np-edps-aks in the sit environment. This is the primary entry point for selecting a real transaction TraceId. Datasource: Tempo (non-prod, uid adj4lmm0iyr5sf by default).",
+      "title": "Downstream HTTP Operations",
+      "description": "Lists client-side downstream operations issued by the AWCS services. These spans can identify external API calls, but endpoint-level detail depends on the attributes emitted by the application. Datasource: Tempo (non-prod).",
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 9
+        "h": 8
       },
       "datasource": {
         "type": "tempo",
@@ -188,7 +188,7 @@
             "type": "tempo",
             "uid": "${tempo_ds}"
           },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n}",
+          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  span:kind = client &&\n  name !~ \"GET /actuator/health/.*\"\n}",
           "queryType": "traceql",
           "limit": 200,
           "tableType": "traces",
@@ -311,11 +311,11 @@
     {
       "id": 2,
       "type": "table",
-      "title": "Transaction Duration",
-      "description": "Shows the duration of matching AWCS traces. The duration represents the span coverage available in Tempo and must not be interpreted as a complete business transaction unless all message, order, API, and completion spans are present. Datasource: Tempo (non-prod).",
+      "title": "HTTP API Latency",
+      "description": "Shows the duration of downstream client spans. Use Tempo span duration for individual requests. Do not calculate long-term percentiles from this panel; use VictoriaMetrics only after endpoint histogram metrics are available. Datasource: Tempo (non-prod). Same underlying query as 'Downstream HTTP Operations' per spec.",
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 8,
         "w": 24,
         "h": 8
       },
@@ -329,7 +329,7 @@
             "type": "tempo",
             "uid": "${tempo_ds}"
           },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n} | by(trace:id)",
+          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  span:kind = client &&\n  name !~ \"GET /actuator/health/.*\"\n}",
           "queryType": "traceql",
           "limit": 200,
           "tableType": "traces",
@@ -452,11 +452,11 @@
     {
       "id": 3,
       "type": "table",
-      "title": "Service and Operation Breakdown",
-      "description": "Shows the services and operations participating in matching AWCS traces, including Service Bus processing, business-processing spans, and downstream HTTP operations. Datasource: Tempo (non-prod).",
+      "title": "Business Processing Spans",
+      "description": "Shows the currently observed internal business-processing operation named processDILInsightsMessage. This panel must not claim to represent all business-processing stages unless the application emits additional named spans. Datasource: Tempo (non-prod).",
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 16,
         "w": 24,
         "h": 8
       },
@@ -470,7 +470,7 @@
             "type": "tempo",
             "uid": "${tempo_ds}"
           },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\"\n}",
+          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name = \"processDILInsightsMessage\"\n}",
           "queryType": "traceql",
           "limit": 200,
           "tableType": "traces",
@@ -593,11 +593,11 @@
     {
       "id": 4,
       "type": "table",
-      "title": "Slow AWCS Traces",
-      "description": "Lists AWCS traces exceeding one second. The threshold is a starting point and should be configurable. Use this panel to identify candidate bottlenecks for investigation. Datasource: Tempo (non-prod).",
+      "title": "ServiceBus.process Spans",
+      "description": "Shows message-processing spans for epe-awcs-mcleod-intg-ms. Use this to compare message-processing duration with downstream API and business-processing spans. Datasource: Tempo (non-prod).",
       "gridPos": {
         "x": 0,
-        "y": 25,
+        "y": 24,
         "w": 24,
         "h": 8
       },
@@ -611,7 +611,7 @@
             "type": "tempo",
             "uid": "${tempo_ds}"
           },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\" &&\n  trace:duration > 1s\n}",
+          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name = \"epe-awcs-mcleod-intg-ms\" &&\n  name = \"ServiceBus.process\"\n}",
           "queryType": "traceql",
           "limit": 200,
           "tableType": "traces",
@@ -734,11 +734,11 @@
     {
       "id": 5,
       "type": "table",
-      "title": "Trace Errors",
-      "description": "Lists AWCS spans marked with error status. A missing result does not prove that processing succeeded because not every application failure is necessarily recorded with OpenTelemetry error status. Datasource: Tempo (non-prod).",
+      "title": "ServiceBus.complete Spans",
+      "description": "Shows message completion spans. This panel provides completion evidence but cannot prove that all orders finished unless the application creates order-level spans or records the processed order count. Datasource: Tempo (non-prod).",
       "gridPos": {
         "x": 0,
-        "y": 33,
+        "y": 32,
         "w": 24,
         "h": 8
       },
@@ -752,148 +752,7 @@
             "type": "tempo",
             "uid": "${tempo_ds}"
           },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name =~ \"epe-awcs-mcleod.*\" &&\n  name !~ \"GET /actuator/health/.*\" &&\n  span:status = error\n}",
-          "queryType": "traceql",
-          "limit": 200,
-          "tableType": "traces",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {}
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "traceID"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View trace in Tempo",
-                    "url": "",
-                    "targetBlank": false,
-                    "internal": {
-                      "datasourceUid": "${tempo_ds}",
-                      "datasourceName": "Tempo",
-                      "query": {
-                        "query": "${__value.raw}",
-                        "queryType": "traceql"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "trace:id"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View trace in Tempo",
-                    "url": "",
-                    "targetBlank": false,
-                    "internal": {
-                      "datasourceUid": "${tempo_ds}",
-                      "datasourceName": "Tempo",
-                      "query": {
-                        "query": "${__value.raw}",
-                        "queryType": "traceql"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "traceId"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View trace in Tempo",
-                    "url": "",
-                    "targetBlank": false,
-                    "internal": {
-                      "datasourceUid": "${tempo_ds}",
-                      "datasourceName": "Tempo",
-                      "query": {
-                        "query": "${__value.raw}",
-                        "queryType": "traceql"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Trace ID"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "View trace in Tempo",
-                    "url": "",
-                    "targetBlank": false,
-                    "internal": {
-                      "datasourceUid": "${tempo_ds}",
-                      "datasourceName": "Tempo",
-                      "query": {
-                        "query": "${__value.raw}",
-                        "queryType": "traceql"
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "options": {}
-    },
-    {
-      "id": 6,
-      "type": "table",
-      "title": "Service Bus Processing Evidence",
-      "description": "Shows Service Bus processing, messaging, and completion spans associated with the AWCS environment. Use this panel to verify message receive and completion behavior. Note: this query is not scoped to resource.service.name \u2014 it matches on span name only, as specified. Datasource: Tempo (non-prod).",
-      "gridPos": {
-        "x": 0,
-        "y": 41,
-        "w": 24,
-        "h": 8
-      },
-      "datasource": {
-        "type": "tempo",
-        "uid": "${tempo_ds}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "tempo",
-            "uid": "${tempo_ds}"
-          },
-          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  name =~ \"ServiceBus.*\"\n}",
+          "query": "{\n  resource.KEYSTONE_TENANT_ID = \"np-edps-aks\" &&\n  resource.epe_service_env = \"sit\" &&\n  resource.service.name = \"epe-awcs-mcleod-intg-ms\" &&\n  name = \"ServiceBus.complete\"\n}",
           "queryType": "traceql",
           "limit": 200,
           "tableType": "traces",

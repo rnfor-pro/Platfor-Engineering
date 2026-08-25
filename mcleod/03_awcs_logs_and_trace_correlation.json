@@ -1,708 +1,761 @@
 {
-  "dashboard": {
-    "uid": "awcs-logs-trace-correlation",
-    "title": "AWCS Logs and Trace Correlation",
-    "description": "Loki-based application log investigation for AWCS McLeod services, with correlation to Tempo traces via TraceId. Datasource: Loki (existing non-prod instance \u2014 select it in the Loki datasource variable above). Services: epe-awcs-mcleod-intg-ms, epe-awcs-mcleod-order-update-intg-ms.",
-    "tags": [
-      "awcs",
-      "mcleod",
-      "loki",
-      "non-prod",
-      "sit"
+  "id": null,
+  "uid": "awcs-logs-trace-correlation",
+  "title": "AWCS Logs and Trace Correlation",
+  "description": "Loki-based application log investigation for AWCS McLeod services, with correlation to Tempo traces via TraceId. Datasource: Loki (existing non-prod instance \u2014 select it in the Loki datasource variable above). Services: epe-awcs-mcleod-intg-ms, epe-awcs-mcleod-order-update-intg-ms.",
+  "tags": [
+    "awcs",
+    "mcleod",
+    "loki",
+    "non-prod",
+    "sit"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m"
     ],
-    "timezone": "browser",
-    "editable": true,
-    "graphTooltip": 1,
-    "time": {
-      "from": "now-1h",
-      "to": "now"
-    },
-    "timepicker": {
-      "refresh_intervals": [
-        "30s",
-        "1m",
-        "5m",
-        "15m"
-      ],
-      "time_options": [
-        "5m",
-        "15m",
-        "1h",
-        "6h",
-        "12h",
-        "24h",
-        "2d",
-        "7d"
-      ]
-    },
-    "refresh": "1m",
-    "schemaVersion": 39,
-    "version": 1,
-    "templating": {
-      "list": [
-        {
-          "name": "tempo_ds",
-          "type": "datasource",
-          "query": "tempo",
-          "label": "Tempo datasource",
-          "current": {
-            "text": "Tempo (non-prod)",
-            "value": "adj4lmm0iyr5sf"
-          },
-          "hide": 0,
-          "description": "Primary trace datasource (Tempo, non-prod Grafana Enterprise). Defaults to uid adj4lmm0iyr5sf."
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d"
+    ]
+  },
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "tempo_ds",
+        "type": "datasource",
+        "query": "tempo",
+        "label": "Tempo datasource",
+        "description": "Primary trace datasource (Tempo, non-prod Grafana Enterprise). Defaults to uid adj4lmm0iyr5sf.",
+        "current": {
+          "text": "Tempo (non-prod)",
+          "value": "adj4lmm0iyr5sf"
         },
-        {
-          "name": "loki_ds",
-          "type": "datasource",
-          "query": "loki",
-          "label": "Loki datasource",
-          "hide": 0,
-          "description": "Existing non-prod Loki datasource. Select your org's non-prod Loki instance."
+        "options": [],
+        "refresh": 1,
+        "regex": "",
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "loki_ds",
+        "type": "datasource",
+        "query": "loki",
+        "label": "Loki datasource",
+        "description": "Existing non-prod Loki datasource. Select your org's non-prod Loki instance.",
+        "current": {
+          "text": "",
+          "value": ""
         },
-        {
-          "name": "tenant",
-          "type": "textbox",
-          "label": "Tenant (reference only)",
-          "current": {
+        "options": [],
+        "refresh": 1,
+        "regex": "",
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "tenant",
+        "type": "textbox",
+        "label": "Tenant (reference only)",
+        "description": "KEYSTONE_TENANT_ID reference. Panel queries below use this value as a literal and are NOT re-parameterized by this box, per the 'do not modify existing queries' rule.",
+        "query": "np-edps-aks",
+        "current": {
+          "selected": false,
+          "text": "np-edps-aks",
+          "value": "np-edps-aks"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "np-edps-aks",
             "value": "np-edps-aks"
-          },
-          "query": "np-edps-aks",
-          "hide": 0,
-          "description": "KEYSTONE_TENANT_ID reference. Panel queries below use this value as a literal and are NOT re-parameterized by this box, per the 'do not modify existing queries' rule."
+          }
+        ],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "environment",
+        "type": "textbox",
+        "label": "Environment (reference only)",
+        "description": "epe_service_env reference. Panel queries below use this value as a literal.",
+        "query": "sit",
+        "current": {
+          "selected": false,
+          "text": "sit",
+          "value": "sit"
         },
-        {
-          "name": "environment",
-          "type": "textbox",
-          "label": "Environment (reference only)",
-          "current": {
+        "options": [
+          {
+            "selected": true,
+            "text": "sit",
             "value": "sit"
-          },
-          "query": "sit",
-          "hide": 0,
-          "description": "epe_service_env reference. Panel queries below use this value as a literal."
+          }
+        ],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "service",
+        "type": "textbox",
+        "label": "Service (reference only)",
+        "description": "resource.service.name filter reference. Panel queries below use this value as a literal.",
+        "query": "epe-awcs-mcleod.*",
+        "current": {
+          "selected": false,
+          "text": "epe-awcs-mcleod.*",
+          "value": "epe-awcs-mcleod.*"
         },
-        {
-          "name": "service",
-          "type": "textbox",
-          "label": "Service (reference only)",
-          "current": {
+        "options": [
+          {
+            "selected": true,
+            "text": "epe-awcs-mcleod.*",
             "value": "epe-awcs-mcleod.*"
-          },
-          "query": "epe-awcs-mcleod.*",
-          "hide": 0,
-          "description": "resource.service.name filter reference. Panel queries below use this value as a literal."
+          }
+        ],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "trace_id",
+        "type": "textbox",
+        "label": "TraceId",
+        "description": "Paste a TraceId here to filter panels that reference $trace_id.",
+        "query": "",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
         },
-        {
-          "name": "trace_id",
-          "type": "textbox",
-          "label": "TraceId",
-          "current": {
+        "options": [
+          {
+            "selected": true,
+            "text": "",
             "value": ""
-          },
-          "query": "",
-          "hide": 0,
-          "description": "Paste a TraceId here to filter panels that reference $trace_id."
-        }
-      ]
-    },
-    "annotations": {
-      "list": []
-    },
-    "links": [],
-    "panels": [
-      {
-        "id": 1,
-        "type": "logs",
-        "title": "AWCS Application Logs",
-        "description": "Displays raw application logs for the two AWCS McLeod services. Loki is used for event context, messages, exceptions, and application details. Datasource: Loki (existing non-prod instance).",
-        "gridPos": {
-          "x": 0,
-          "y": 0,
-          "w": 24,
-          "h": 9
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${loki_ds}"
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "loki",
-              "uid": "${loki_ds}"
-            },
-            "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"}",
-            "queryType": "range",
-            "refId": "A"
           }
         ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": {}
-          },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "trace_id"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceID"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceId"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true
-        }
-      },
-      {
-        "id": 2,
-        "type": "logs",
-        "title": "AWCS McLeod Request Logs",
-        "description": "Shows outbound McLeod request log records from epe-awcs-mcleod-intg-ms. These records may include HTTP method, endpoint, and correlation identifiers, but they should not replace Tempo spans for accurate latency analysis. Datasource: Loki (existing non-prod instance).",
-        "gridPos": {
-          "x": 0,
-          "y": 9,
-          "w": 24,
-          "h": 8
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${loki_ds}"
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "loki",
-              "uid": "${loki_ds}"
-            },
-            "expr": "{service_name=\"epe-awcs-mcleod-intg-ms\"} |= \"Outgoing HTTP Request\"",
-            "queryType": "range",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": {}
-          },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "trace_id"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceID"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceId"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true
-        }
-      },
-      {
-        "id": 3,
-        "type": "logs",
-        "title": "Response Duration Logs",
-        "description": "Shows application response records containing durationMs. The field is useful for investigation, but coverage and formatting may vary by operation. Datasource: Loki (existing non-prod instance).",
-        "gridPos": {
-          "x": 0,
-          "y": 17,
-          "w": 24,
-          "h": 8
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${loki_ds}"
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "loki",
-              "uid": "${loki_ds}"
-            },
-            "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} |= \"durationMs\"",
-            "queryType": "range",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": {}
-          },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "trace_id"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceID"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceId"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true
-        }
-      },
-      {
-        "id": 4,
-        "type": "logs",
-        "title": "Error and Exception Logs",
-        "description": "Shows likely application failures and exceptions. This is a text search and may include false positives; users should open the full log context before concluding that a transaction failed. Datasource: Loki (existing non-prod instance).",
-        "gridPos": {
-          "x": 0,
-          "y": 25,
-          "w": 24,
-          "h": 8
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${loki_ds}"
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "loki",
-              "uid": "${loki_ds}"
-            },
-            "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} |~ \"(?i)error|exception|failed|failure\"",
-            "queryType": "range",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": {}
-          },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "trace_id"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceID"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceId"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true
-        }
-      },
-      {
-        "id": 5,
-        "type": "logs",
-        "title": "Logs by Selected TraceId",
-        "description": "Filters AWCS logs by a user-supplied TraceId. This works only when the trace_id is preserved as Loki structured metadata. If no logs are returned, use Tempo's 'Logs for this span' action and verify the trace-to-log correlation configuration. Datasource: Loki (existing non-prod instance). Uses the $trace_id dashboard variable.",
-        "gridPos": {
-          "x": 0,
-          "y": 33,
-          "w": 24,
-          "h": 8
-        },
-        "datasource": {
-          "type": "loki",
-          "uid": "${loki_ds}"
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "loki",
-              "uid": "${loki_ds}"
-            },
-            "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} | trace_id = \"$trace_id\"",
-            "queryType": "range",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "custom": {}
-          },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "trace_id"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceID"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "traceId"
-              },
-              "properties": [
-                {
-                  "id": "links",
-                  "value": [
-                    {
-                      "title": "View trace in Tempo",
-                      "url": "",
-                      "targetBlank": false,
-                      "internal": {
-                        "datasourceUid": "${tempo_ds}",
-                        "datasourceName": "Tempo",
-                        "query": {
-                          "query": "${__value.raw}",
-                          "queryType": "traceql"
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true
-        }
+        "hide": 0,
+        "skipUrlSync": false
       }
     ]
   },
-  "overwrite": false,
-  "folderUid": null
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "logs",
+      "title": "AWCS Application Logs",
+      "description": "Displays raw application logs for the two AWCS McLeod services. Loki is used for event context, messages, exceptions, and application details. Datasource: Loki (existing non-prod instance).",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_ds}"
+          },
+          "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceId"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "AWCS McLeod Request Logs",
+      "description": "Shows outbound McLeod request log records from epe-awcs-mcleod-intg-ms. These records may include HTTP method, endpoint, and correlation identifiers, but they should not replace Tempo spans for accurate latency analysis. Datasource: Loki (existing non-prod instance).",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_ds}"
+          },
+          "expr": "{service_name=\"epe-awcs-mcleod-intg-ms\"} |= \"Outgoing HTTP Request\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceId"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 3,
+      "type": "logs",
+      "title": "Response Duration Logs",
+      "description": "Shows application response records containing durationMs. The field is useful for investigation, but coverage and formatting may vary by operation. Datasource: Loki (existing non-prod instance).",
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_ds}"
+          },
+          "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} |= \"durationMs\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceId"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Error and Exception Logs",
+      "description": "Shows likely application failures and exceptions. This is a text search and may include false positives; users should open the full log context before concluding that a transaction failed. Datasource: Loki (existing non-prod instance).",
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_ds}"
+          },
+          "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} |~ \"(?i)error|exception|failed|failure\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceId"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Logs by Selected TraceId",
+      "description": "Filters AWCS logs by a user-supplied TraceId. This works only when the trace_id is preserved as Loki structured metadata. If no logs are returned, use Tempo's 'Logs for this span' action and verify the trace-to-log correlation configuration. Datasource: Loki (existing non-prod instance). Uses the $trace_id dashboard variable.",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${loki_ds}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${loki_ds}"
+          },
+          "expr": "{service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"} | trace_id = \"$trace_id\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceID"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "traceId"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View trace in Tempo",
+                    "url": "",
+                    "targetBlank": false,
+                    "internal": {
+                      "datasourceUid": "${tempo_ds}",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    }
+  ]
 }
