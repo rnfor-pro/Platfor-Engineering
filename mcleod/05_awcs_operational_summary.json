@@ -171,7 +171,7 @@
       "id": 1,
       "type": "stat",
       "title": "Matching Trace Count",
-      "description": "Number of matching AWCS traces in the selected time range, excluding health checks. Datasource: Tempo (non-prod).",
+      "description": "Number of matching AWCS traces in the selected time range, excluding health checks. Datasource: Tempo (non-prod). Value is a row count of the underlying trace search results (Panel counts rows via calcs:['count'], fields:'' -- Grafana's stat panel counts whichever field it auto-selects; the unit/decimals override below forces that count to render as a plain integer regardless of which column was auto-selected, since the auto-selected column is often the Duration field and its 'ms' unit would otherwise be misapplied to the count).",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -197,9 +197,27 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "custom": {}
+          "unit": "none",
+          "decimals": 0
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byType",
+              "options": "number"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -207,14 +225,14 @@
             "count"
           ]
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       }
     },
     {
       "id": 2,
       "type": "stat",
       "title": "Error Spans",
-      "description": "Counts or lists spans explicitly marked as errors by OpenTelemetry. Datasource: Tempo (non-prod).",
+      "description": "Counts or lists spans explicitly marked as errors by OpenTelemetry. Datasource: Tempo (non-prod). Value is a row count of matching error spans (see Matching Trace Count description for why unit/decimals are forced here).",
       "gridPos": {
         "x": 12,
         "y": 0,
@@ -240,6 +258,8 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "unit": "none",
+          "decimals": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -254,7 +274,24 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byType",
+              "options": "number"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -262,7 +299,7 @@
             "count"
           ]
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       }
     },
     {
@@ -410,7 +447,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "AWCS Log Volume",
-      "description": "Shows AWCS application log volume over time. Spikes may indicate increased traffic or repeated failures, but log volume is not equivalent to transaction volume. Datasource: Loki (existing non-prod instance).",
+      "description": "Shows AWCS application log volume over time. Spikes may indicate increased traffic or repeated failures, but log volume is not equivalent to transaction volume. Datasource: Loki (existing non-prod instance). The query's sum(...) has no by(...) clause, so it intentionally collapses both services into one combined series; the legend name is set explicitly here so it doesn't render as the empty label set '{}'.",
       "gridPos": {
         "x": 0,
         "y": 14,
@@ -429,7 +466,8 @@
           },
           "expr": "sum(count_over_time(\n  {service_name=~\"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\"}[5m]\n))",
           "queryType": "range",
-          "refId": "A"
+          "refId": "A",
+          "legendFormat": "AWCS log volume (both services combined)"
         }
       ],
       "fieldConfig": {

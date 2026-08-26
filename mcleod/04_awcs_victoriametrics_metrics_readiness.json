@@ -323,6 +323,8 @@
       ],
       "fieldConfig": {
         "defaults": {
+          "unit": "none",
+          "decimals": 0,
           "noValue": "0 series \u2014 no AWCS metrics available yet",
           "thresholds": {
             "mode": "absolute",
@@ -338,7 +340,24 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byType",
+              "options": "number"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
