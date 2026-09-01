@@ -280,7 +280,7 @@
             "options": {
               "source": "labels",
               "format": "json",
-              "replace": true,
+              "replace": false,
               "jsonPaths": [
                 { "path": "epe_service_name", "alias": "epe_service_name" }
               ]
@@ -292,7 +292,7 @@
               "source": "Line",
               "format": "regex",
               "regex": "^\\s*(?<LineTraceID>[^|]+?)\\s*\\|\\s*(?<LineService>[^|]+?)\\s*\\|\\s*(?<Url>[^|]+?)\\s*\\|\\s*(?<Method>[^|]+?)\\s*$",
-              "replace": true,
+              "replace": false,
               "keepTime": false
             }
           },
@@ -302,7 +302,7 @@
               "source": "Url",
               "format": "regex",
               "regex": "^https?:\\/\\/[^\\/]+(?<Endpoint>.*)$",
-              "replace": true,
+              "replace": false,
               "keepTime": false
             }
           },
@@ -319,11 +319,14 @@
             "id": "organize",
             "options": {
               "excludeByName": {
+                "labels": true,
                 "labelTypes": true,
                 "id": true,
                 "tsNs": true,
+                "Line": true,
                 "LineTraceID": true,
-                "LineService": true
+                "LineService": true,
+                "Url": true
               },
               "indexByName": {
                 "TraceID": 0,
