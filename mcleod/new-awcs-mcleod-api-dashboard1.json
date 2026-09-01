@@ -232,16 +232,16 @@
               ]
             },
             {
-              "matcher": { "id": "byName", "options": "ServiceName" },
+              "matcher": { "id": "byName", "options": "epe_service_name" },
               "properties": [
                 { "id": "displayName", "value": "Service Name" },
                 { "id": "custom.width", "value": 220 }
               ]
             },
             {
-              "matcher": { "id": "byName", "options": "APIEndpoint" },
+              "matcher": { "id": "byName", "options": "Endpoint" },
               "properties": [
-                { "id": "displayName", "value": "API Endpoint" },
+                { "id": "displayName", "value": "Endpoint" },
                 { "id": "custom.width", "value": 300 }
               ]
             },
@@ -262,6 +262,15 @@
                   ]
                 }
               ]
+            },
+            {
+              "matcher": { "id": "byName", "options": "Duration (s)" },
+              "properties": [
+                { "id": "displayName", "value": "Duration (s)" },
+                { "id": "unit", "value": "none" },
+                { "id": "decimals", "value": 0 },
+                { "id": "custom.width", "value": 150 }
+              ]
             }
           ]
         },
@@ -269,9 +278,20 @@
           {
             "id": "extractFields",
             "options": {
+              "source": "labels",
+              "format": "json",
+              "replace": true,
+              "jsonPaths": [
+                { "path": "epe_service_name", "alias": "epe_service_name" }
+              ]
+            }
+          },
+          {
+            "id": "extractFields",
+            "options": {
               "source": "Line",
               "format": "regex",
-              "regex": "^\\s*(?<LineTraceID>[^|]+?)\\s*\\|\\s*(?<ServiceName>[^|]+?)\\s*\\|\\s*(?<Url>[^|]+?)\\s*\\|\\s*(?<Method>[^|]+?)\\s*$",
+              "regex": "^\\s*(?<LineTraceID>[^|]+?)\\s*\\|\\s*(?<LineService>[^|]+?)\\s*\\|\\s*(?<Url>[^|]+?)\\s*\\|\\s*(?<Method>[^|]+?)\\s*$",
               "replace": true,
               "keepTime": false
             }
@@ -281,29 +301,37 @@
             "options": {
               "source": "Url",
               "format": "regex",
-              "regex": "^https?:\\/\\/[^\\/]+(?<APIEndpoint>.*)$",
+              "regex": "^https?:\\/\\/[^\\/]+(?<Endpoint>.*)$",
               "replace": true,
               "keepTime": false
+            }
+          },
+          {
+            "id": "calculateField",
+            "options": {
+              "mode": "binary",
+              "binary": { "left": "tsNs", "operator": "/", "right": "1000000000" },
+              "alias": "Duration (s)",
+              "replaceFields": false
             }
           },
           {
             "id": "organize",
             "options": {
               "excludeByName": {
-                "labels": true,
                 "labelTypes": true,
                 "id": true,
                 "tsNs": true,
-                "Line": true,
                 "LineTraceID": true,
-                "Url": true
+                "LineService": true
               },
               "indexByName": {
                 "TraceID": 0,
                 "Time": 1,
-                "ServiceName": 2,
-                "APIEndpoint": 3,
-                "Method": 4
+                "epe_service_name": 2,
+                "Endpoint": 3,
+                "Method": 4,
+                "Duration (s)": 5
               }
             }
           },
@@ -311,7 +339,7 @@
             "id": "sortBy",
             "options": {
               "fields": {},
-              "sort": [{ "field": "Start Time", "desc": true }]
+              "sort": [{ "field": "Time", "desc": true }]
             }
           }
         ]
