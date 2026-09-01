@@ -1,0 +1,1879 @@
+{
+  "id": null,
+  "uid": "awcs-mcleod-order-integ-mon",
+  "title": "AWCS McLeod Order Integration Monitoring Dashboard",
+  "description": "Tracks API calls, performance metrics, and order processing flows between AWCS and McLeod services in SIT environment with real-time monitoring, alerts, and trace-based debugging capabilities",
+  "tags": [
+    "integration",
+    "mcleod",
+    "awcs",
+    "sit",
+    "monitoring"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Executive Summary",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "24h KPI snapshot for AWCS \u2194 McLeod API traffic in SIT."
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "Total API Calls",
+      "description": "Total count of all outgoing HTTP requests from AWCS McLeod services in the last 24 hours",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\"[$__interval]))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Total Calls"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 501
+              },
+              {
+                "color": "red",
+                "value": 1001
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 103,
+      "type": "stat",
+      "title": "Avg API Response Time",
+      "description": "Average duration of all API calls to external endpoints (excluding health checks)",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "avg(avg_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | unwrap tsNs [$__interval])) / 1000000",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Avg Duration (ms)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 301
+              },
+              {
+                "color": "red",
+                "value": 601
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 104,
+      "type": "gauge",
+      "title": "Success Rate",
+      "description": "Percentage of successful API calls (HTTP 200-299 status codes). ASSUMPTION: response status is read from an \"Outgoing HTTP Response <-\" log line with a status=NNN token \u2014 adjust the regex if the actual response log format differs.",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Response <-\" ${include_actuator} | regexp `status[=:]\\s*(?P<status_code>[0-9]{3})` | status_code=~\"2..\"[$__interval])) / sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Response <-\" ${include_actuator} [$__interval])) * 100",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Success %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 85
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 105,
+      "type": "stat",
+      "title": "Active Service Integrations",
+      "description": "Count of unique services actively calling external endpoints in real-time",
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "count(count by (service_name) (count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\"[$__interval])))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Active Services"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 106,
+      "type": "row",
+      "title": "API Endpoints Detail",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Detailed breakdown of all API calls by endpoint, service, and performance metrics. Click a Trace ID to open the trace in Tempo."
+    },
+    {
+      "id": 107,
+      "type": "table",
+      "title": "API Endpoints Activity Summary",
+      "description": "Detailed breakdown of all API calls by endpoint, service, and performance metrics. Click trace ID for distributed trace analysis.",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "{service_name=~\"$service_name\", epe_service_env=\"sit\"}\n|= \"Outgoing HTTP Request ->\" ${include_actuator}\n!= \"actuator\"\n| regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)`\n| http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\"",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "labels",
+            "format": "auto",
+            "replace": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "tsNs",
+                "destinationType": "number"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "binary": {
+              "left": "tsNs",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "1000000"
+            },
+            "alias": "Duration (ms)",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "labelTypes": true,
+              "id": true,
+              "labels": true,
+              "Line": true,
+              "tsNs": true,
+              "epe_service_env": true
+            },
+            "indexByName": {
+              "trace_id": 0,
+              "Time": 1,
+              "epe_service_name": 2,
+              "http_method": 3,
+              "api_endpoint": 4,
+              "Duration (ms)": 5,
+              "x_correlation_id": 6
+            },
+            "renameByName": {
+              "trace_id": "Trace ID",
+              "Time": "Start Time",
+              "epe_service_name": "Service Name",
+              "http_method": "HTTP Method",
+              "api_endpoint": "API Endpoint",
+              "x_correlation_id": "Correlation ID"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Start Time",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false
+        },
+        "cellHeight": "sm",
+        "enablePagination": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Trace ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open trace in Tempo",
+                    "url": "/explore?left=%7B%22datasource%22:%22adj4lmm0iyr5sf%22,%22queries%22:%5B%7B%22query%22:%22${__value.raw}%22,%22queryType%22:%22traceql%22%7D%5D,%22range%22:%7B%22from%22:%22${__from}%22,%22to%22:%22${__to}%22%7D%7D",
+                    "targetBlank": true
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start Time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Service Name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto",
+                  "wrapText": false
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HTTP Method"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": []
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "text",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "GET": {
+                        "color": "blue",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "POST": {
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "PUT": {
+                        "color": "orange",
+                        "index": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "DELETE": {
+                        "color": "red",
+                        "index": 3
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "PATCH": {
+                        "color": "yellow",
+                        "index": 4
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "API Endpoint"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 350
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto",
+                  "wrapText": false
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration (ms)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 101
+                    },
+                    {
+                      "color": "orange",
+                      "value": 301
+                    },
+                    {
+                      "color": "red",
+                      "value": 601
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Correlation ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto",
+                  "wrapText": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 108,
+      "type": "row",
+      "title": "Performance Metrics",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Response-time distribution and endpoint call volume across the selected time range."
+    },
+    {
+      "id": 109,
+      "type": "barchart",
+      "title": "API Response Time Distribution",
+      "description": "Histogram showing distribution of API call durations across all endpoints, bucketed in 100ms increments.",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 0 | tsNs <= 100000000 [$__range]))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "0-100ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 100000000 | tsNs <= 200000000 [$__range]))",
+          "refId": "B",
+          "queryType": "range",
+          "legendFormat": "100-200ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 200000000 | tsNs <= 300000000 [$__range]))",
+          "refId": "C",
+          "queryType": "range",
+          "legendFormat": "200-300ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 300000000 | tsNs <= 400000000 [$__range]))",
+          "refId": "D",
+          "queryType": "range",
+          "legendFormat": "300-400ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 400000000 | tsNs <= 500000000 [$__range]))",
+          "refId": "E",
+          "queryType": "range",
+          "legendFormat": "400-500ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 500000000 | tsNs <= 600000000 [$__range]))",
+          "refId": "F",
+          "queryType": "range",
+          "legendFormat": "500-600ms"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 600000000 [$__range]))",
+          "refId": "G",
+          "queryType": "range",
+          "legendFormat": "600ms+"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ],
+            "mode": "seriesToRows"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Field": "Duration Range",
+              "Last *": "Count",
+              "Last": "Count"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "scheme"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xTickLabelRotation": 0,
+        "showValue": "always",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 110,
+      "type": "barchart",
+      "title": "Calls by Endpoint",
+      "description": "Top 10 most called API endpoints ranked by call count.",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "topk(10, sum by (api_endpoint) (count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\"[$__range])))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "{{api_endpoint}}"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ],
+            "mode": "seriesToRows"
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "field": "Last",
+                "desc": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Field": "API Endpoint",
+              "Last": "Call Count"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "scheme"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xTickLabelRotation": 0,
+        "showValue": "always",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 111,
+      "type": "row",
+      "title": "Tempo Traces Detail",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Complete trace information from Tempo including endpoints, durations, and service dependencies."
+    },
+    {
+      "id": 112,
+      "type": "table",
+      "title": "API Traces with Endpoint Details",
+      "description": "Complete trace information from Tempo including endpoints, durations, and service dependencies.",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "adj4lmm0iyr5sf"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "adj4lmm0iyr5sf"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"epe-awcs-mcleod.*\" && span.http.url != nil && span.http.url !~ \".*actuator.*\" ${include_actuator} }",
+          "refId": "A",
+          "limit": 100,
+          "tableType": "traces"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "span.http.url",
+            "format": "auto",
+            "replace": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "renameByName": {
+              "traceID": "Trace ID",
+              "traceService": "Service Name",
+              "startTime": "Start Time",
+              "spanHttpMethod": "HTTP Method",
+              "spanHttpUrl": "API Endpoint",
+              "duration": "Duration (ms)",
+              "spanHttpStatusCode": "Status",
+              "nestedSetLeft": "Span Count"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Start Time",
+            "desc": true
+          }
+        ],
+        "footer": {
+          "show": false
+        },
+        "cellHeight": "sm",
+        "enablePagination": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Trace ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open trace in Tempo",
+                    "url": "/explore?left=%7B%22datasource%22:%22adj4lmm0iyr5sf%22,%22queries%22:%5B%7B%22query%22:%22${__value.raw}%22,%22queryType%22:%22traceql%22%7D%5D%7D",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start Time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Service Name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "API Endpoint"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 350
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto",
+                  "wrapText": false
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HTTP Method"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "GET": {
+                        "color": "blue",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "POST": {
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "PUT": {
+                        "color": "orange",
+                        "index": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "DELETE": {
+                        "color": "red",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration (ms)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 101
+                    },
+                    {
+                      "color": "orange",
+                      "value": 301
+                    },
+                    {
+                      "color": "red",
+                      "value": 601
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": 200,
+                      "to": 299,
+                      "result": {
+                        "color": "green"
+                      }
+                    }
+                  },
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": 300,
+                      "to": 399,
+                      "result": {
+                        "color": "blue"
+                      }
+                    }
+                  },
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": 400,
+                      "to": 499,
+                      "result": {
+                        "color": "orange"
+                      }
+                    }
+                  },
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": 500,
+                      "to": 599,
+                      "result": {
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Span Count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration (ms)"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 113,
+      "type": "row",
+      "title": "Service Correlation Analysis",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Which services call which external endpoints, how often, and the typical order-processing sequence."
+    },
+    {
+      "id": 114,
+      "type": "nodeGraph",
+      "title": "Service Call Dependencies",
+      "description": "Showing which services call which external endpoints and frequency (epe-awcs-mcleod-intg-ms, epe-awcs-mcleod-order-update-intg-ms -> tms-ctsm.mcleodhosted.com, login.microsoftonline.com, sbt-*). Edge thickness is proportional to call frequency; color reflects success rate.",
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "adj4lmm0iyr5sf"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "adj4lmm0iyr5sf"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"epe-awcs-mcleod-intg-ms|epe-awcs-mcleod-order-update-intg-ms\" }",
+          "refId": "A",
+          "limit": 200,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 115,
+      "type": "state-timeline",
+      "title": "Order Processing Flow Timeline",
+      "description": "Timeline showing the typical sequence of API calls for a single order (trace-based): Movement Search -> Movement Update -> Response. Color = service; bar length = time between steps.",
+      "gridPos": {
+        "x": 12,
+        "y": 42,
+        "w": 12,
+        "h": 10
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "adj4lmm0iyr5sf"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "adj4lmm0iyr5sf"
+          },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"epe-awcs-mcleod.*\" && name =~ \"Movement Search|Movement Update|Response\" }",
+          "refId": "A",
+          "limit": 100,
+          "tableType": "traces"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 70
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "always",
+        "rowHeight": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 116,
+      "type": "row",
+      "title": "Error & Anomaly Detection",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Failure rates by service and calls that breach the 500ms latency budget."
+    },
+    {
+      "id": 117,
+      "type": "stat",
+      "title": "Error Rate by Service",
+      "description": "Percentage of failed calls per service in the last 24 hours. ASSUMPTION: same response-log status convention as the Success Rate panel \u2014 adjust if needed.",
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum by (service_name) (count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Response <-\" ${include_actuator} | regexp `status[=:]\\s*(?P<status_code>[0-9]{3})` | status_code=~\"[45]..\" [$__interval])) / sum by (service_name) (count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Response <-\" ${include_actuator} [$__interval])) * 100",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 118,
+      "type": "stat",
+      "title": "Slow API Calls (>500ms)",
+      "description": "Count of API calls exceeding the 500ms threshold in the last hour.",
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "sum(count_over_time({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" ${include_actuator} | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)` | http_method=~\"$http_method\" | api_endpoint=~\"$api_endpoint\" | tsNs > 500000000 [1h]))",
+          "refId": "A",
+          "queryType": "range",
+          "legendFormat": "Slow Calls"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 11
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 119,
+      "type": "row",
+      "title": "Raw Logs Explorer",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Complete logs from all API calls including payloads (truncated for readability)."
+    },
+    {
+      "id": 120,
+      "type": "logs",
+      "title": "Raw API Request/Response Logs",
+      "description": "Complete logs from all API calls including payloads (truncated for readability). Errors and warnings are highlighted; limited to the most recent 500 lines.",
+      "gridPos": {
+        "x": 0,
+        "y": 62,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "adj41glw10p34e"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "adj41glw10p34e"
+          },
+          "expr": "{service_name=~\"$service_name\", epe_service_env=\"sit\"}\n|= \"Outgoing\" ${include_actuator}\n!= \"actuator\"\n| line_format \"{{.timestamp}} | {{.epe_service_name}} | {{.severity_text}} | {{.message}}\"",
+          "refId": "A",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 121,
+      "type": "row",
+      "title": "Monitoring & Alerts Summary",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [],
+      "repeat": null,
+      "description": "Active alerts and anomalies detected across AWCS <-> McLeod integrations. Alert rules are provisioned separately (see awcs_mcleod_alert_rules.yaml) using Grafana unified alerting."
+    },
+    {
+      "id": 122,
+      "type": "stat",
+      "title": "Active Alert Count",
+      "description": "Number of AWCS/McLeod integration alerts currently firing. Requires a Prometheus/Mimir datasource receiving Grafana's alerting metrics \u2014 see note in README.",
+      "gridPos": {
+        "x": 0,
+        "y": 75,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "REPLACE_WITH_PROMETHEUS_UID"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "REPLACE_WITH_PROMETHEUS_UID"
+          },
+          "expr": "sum(ALERTS{alertstate=\"firing\", alertname=~\".*AWCS.*McLeod.*\"})",
+          "refId": "A",
+          "legendFormat": "Firing Alerts"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 123,
+      "type": "alertlist",
+      "title": "Active Alerts & Anomalies",
+      "description": "Summary of alerts triggered in the last 24 hours: High Latency, Error Rate, Service Down, and Quota Exceeded. Filtered to alerts tagged integration/mcleod/awcs/sit.",
+      "gridPos": {
+        "x": 6,
+        "y": 75,
+        "w": 18,
+        "h": 8
+      },
+      "options": {
+        "showOptions": "current",
+        "maxItems": 20,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": false,
+          "normal": false,
+          "error": true
+        },
+        "folder": "",
+        "tags": [
+          "integration",
+          "mcleod",
+          "awcs",
+          "sit"
+        ]
+      },
+      "pluginVersion": "11.0.0"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service_name",
+        "type": "query",
+        "label": "Service Name",
+        "datasource": {
+          "type": "loki",
+          "uid": "adj41glw10p34e"
+        },
+        "query": {
+          "query": "label_values(service_name)",
+          "refId": "ServiceNameVariable"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
+      },
+      {
+        "name": "http_method",
+        "type": "custom",
+        "label": "HTTP Method",
+        "query": "GET,POST,PUT,DELETE,PATCH",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "GET",
+            "value": "GET",
+            "selected": false
+          },
+          {
+            "text": "POST",
+            "value": "POST",
+            "selected": false
+          },
+          {
+            "text": "PUT",
+            "value": "PUT",
+            "selected": false
+          },
+          {
+            "text": "DELETE",
+            "value": "DELETE",
+            "selected": false
+          },
+          {
+            "text": "PATCH",
+            "value": "PATCH",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "api_endpoint",
+        "type": "query",
+        "label": "API Endpoint",
+        "datasource": {
+          "type": "loki",
+          "uid": "adj41glw10p34e"
+        },
+        "description": "Populated from extracted endpoint paths seen in the last 6h of matching logs.",
+        "query": {
+          "query": "label_values({service_name=~\"$service_name\", epe_service_env=\"sit\"} |= \"Outgoing HTTP Request ->\" | regexp `Outgoing HTTP Request -> (?P<http_method>[A-Z]+) https?://[^/\\s]+(?P<api_endpoint>/[^\\s?]*)`, api_endpoint)",
+          "refId": "ApiEndpointVariable"
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
+      },
+      {
+        "name": "include_actuator",
+        "type": "custom",
+        "label": "Include actuator endpoints",
+        "description": "OFF (default) excludes /actuator/* noise; ON removes the exclusion filter.",
+        "query": "Off : != \"actuator\",On : ",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "selected": true,
+          "text": "Off",
+          "value": "!= \"actuator\""
+        },
+        "options": [
+          {
+            "text": "Off",
+            "value": "!= \"actuator\"",
+            "selected": true
+          },
+          {
+            "text": "On",
+            "value": "",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Alerts",
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "links": [],
+  "style": "dark",
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "weekStart": ""
+}
