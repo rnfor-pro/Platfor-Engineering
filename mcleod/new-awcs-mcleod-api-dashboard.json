@@ -1,0 +1,320 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_TEMPO",
+      "label": "Tempo",
+      "description": "Tempo datasource used for the API Traces panel",
+      "type": "datasource",
+      "pluginId": "tempo"
+    },
+    {
+      "name": "DS_LOKI",
+      "label": "Loki",
+      "description": "Loki datasource used for the API Logs panel",
+      "type": "datasource",
+      "pluginId": "loki"
+    }
+  ],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "tempo", "name": "Tempo", "version": "1.0.0" },
+    { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": ["awcs-mcleod", "api-monitoring"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AWCS McLeod API Calls",
+  "description": "Monitors AWCS McLeod API calls via Tempo traces and Loki logs, joined by trace ID.",
+  "version": 1,
+  "weekStart": "",
+
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "API Traces",
+      "description": "Tempo: outgoing/inbound spans for epe-awcs-mcleod* services with an http.url, excluding actuator health checks.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "${DS_TEMPO}" },
+          "queryType": "traceql",
+          "tableType": "traces",
+          "limit": 1000,
+          "query": "{ resource.service.name =~ \"epe-awcs-mcleod.*\" && span.http.url != nil && span.http.url !~ \".*actuator.*\" }"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Start Time", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "cellOptions": { "type": "auto" }, "inspect": false },
+          "mappings": [],
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              { "id": "displayName", "value": "Trace ID" },
+              { "id": "links", "value": [ { "title": "View trace", "url": "/explore?left=%7B%22datasource%22:%22${DS_TEMPO}%22,%22queries%22:%5B%7B%22query%22:%22${__value.raw}%22,%22queryType%22:%22traceql%22%7D%5D%7D" } ] },
+              { "id": "custom.width", "value": 280 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "startTime" },
+            "properties": [
+              { "id": "displayName", "value": "Start Time" },
+              { "id": "unit", "value": "dateTimeAsIso" },
+              { "id": "custom.width", "value": 200 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "resource.service.name" },
+            "properties": [
+              { "id": "displayName", "value": "Service" },
+              { "id": "custom.width", "value": 220 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "span.http.url" },
+            "properties": [
+              { "id": "displayName", "value": "API Endpoint" },
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "duration" },
+            "properties": [
+              { "id": "displayName", "value": "Duration" },
+              { "id": "unit", "value": "ms" },
+              { "id": "custom.width", "value": 120 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "span.http.method" },
+            "properties": [
+              { "id": "displayName", "value": "HTTP Method" },
+              { "id": "custom.width", "value": 130 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "color", "value": { "mode": "fixed" } },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "GET":    { "color": "blue",   "index": 0 } } },
+                  { "type": "value", "options": { "POST":   { "color": "green",  "index": 1 } } },
+                  { "type": "value", "options": { "PUT":    { "color": "orange", "index": 2 } } },
+                  { "type": "value", "options": { "DELETE": { "color": "red",    "index": 3 } } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "span.http.url",
+            "format": "regex",
+            "regex": "^https?:\\/\\/[^\\/]+(?<APIEndpoint>.*)$",
+            "replace": true,
+            "keepTime": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "binary",
+            "binary": { "left": "duration", "operator": "/", "right": "1000000" },
+            "alias": "Duration",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "spanID": true,
+              "parentSpanID": true,
+              "statusCode": true,
+              "nested": true
+            },
+            "indexByName": {
+              "traceID": 0,
+              "startTime": 1,
+              "resource.service.name": 2,
+              "APIEndpoint": 3,
+              "span.http.method": 4,
+              "Duration": 5
+            },
+            "renameByName": {
+              "traceID": "Trace ID",
+              "startTime": "Start Time",
+              "resource.service.name": "Service",
+              "APIEndpoint": "API Endpoint",
+              "span.http.method": "HTTP Method",
+              "Duration": "Duration (ms)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Start Time", "desc": true }]
+          }
+        }
+      ]
+    },
+
+    {
+      "id": 2,
+      "type": "table",
+      "title": "API Logs",
+      "description": "Loki: raw outgoing HTTP request log lines for epe-awcs-mcleod* services in SIT, excluding actuator noise.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+          "queryType": "range",
+          "maxLines": 1000,
+          "expr": "{service_name=~\"epe-awcs-mcleod.*\"} |= \"Outgoing HTTP\" != \"/actuator\" | pattern `<_> HTTP Request -> Method = <method> | Full URL = <url>` | line_format \"{{.trace_id}} | {{.service_name}} | {{.url}} | {{.method}}\""
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Start Time", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "cellOptions": { "type": "auto" }, "inspect": false },
+          "mappings": [],
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "TraceID" },
+            "properties": [
+              { "id": "displayName", "value": "Trace ID" },
+              { "id": "custom.width", "value": 280 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Time" },
+            "properties": [
+              { "id": "displayName", "value": "Start Time" },
+              { "id": "unit", "value": "dateTimeAsIso" },
+              { "id": "custom.width", "value": 200 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ServiceName" },
+            "properties": [
+              { "id": "displayName", "value": "Service Name" },
+              { "id": "custom.width", "value": 220 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "APIEndpoint" },
+            "properties": [
+              { "id": "displayName", "value": "API Endpoint" },
+              { "id": "custom.width", "value": 300 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Method" },
+            "properties": [
+              { "id": "displayName", "value": "HTTP Method" },
+              { "id": "custom.width", "value": 130 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+              { "id": "color", "value": { "mode": "fixed" } },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "GET":    { "color": "blue",   "index": 0 } } },
+                  { "type": "value", "options": { "POST":   { "color": "green",  "index": 1 } } },
+                  { "type": "value", "options": { "PUT":    { "color": "orange", "index": 2 } } },
+                  { "type": "value", "options": { "DELETE": { "color": "red",    "index": 3 } } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Line",
+            "format": "regex",
+            "regex": "^\\s*(?<LineTraceID>[^|]+?)\\s*\\|\\s*(?<ServiceName>[^|]+?)\\s*\\|\\s*(?<Url>[^|]+?)\\s*\\|\\s*(?<Method>[^|]+?)\\s*$",
+            "replace": true,
+            "keepTime": false
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Url",
+            "format": "regex",
+            "regex": "^https?:\\/\\/[^\\/]+(?<APIEndpoint>.*)$",
+            "replace": true,
+            "keepTime": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "labels": true,
+              "labelTypes": true,
+              "id": true,
+              "tsNs": true,
+              "Line": true,
+              "LineTraceID": true,
+              "Url": true
+            },
+            "indexByName": {
+              "TraceID": 0,
+              "Time": 1,
+              "ServiceName": 2,
+              "APIEndpoint": 3,
+              "Method": 4
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "Start Time", "desc": true }]
+          }
+        }
+      ]
+    }
+  ]
+}
